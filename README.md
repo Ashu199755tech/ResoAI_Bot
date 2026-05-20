@@ -42,7 +42,7 @@ We have containerized the entire application for "one-click" portability, preven
 Ensure you have Docker and Docker Compose installed on your machine.
 
 ```bash
-git clone https://github.com/Ashu199755tech/SarvagyaAI.git
+git clone https://github.com/pathak-shashank-55/sarvagya_ai.git
 cd SarvagyaAI
 
 # Start the environment in detached mode
