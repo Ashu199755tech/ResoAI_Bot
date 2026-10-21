@@ -86,6 +86,17 @@ def get_history(session_id: str, limit: int = 2) -> list[dict]:
         logger.error(f"Failed to retrieve memory: {e}")
         return []
 
+def clear_history(session_id: str) -> None:
+    """Clear chat history for a given session."""
+    if not session_id:
+        return
+    try:
+        init_memory()
+        with _get_connection() as conn:
+            conn.execute("DELETE FROM chat_history WHERE session_id = ?", (session_id,))
+    except Exception as e:
+        logger.error(f"Failed to clear memory for session {session_id}: {e}")
+
 import re
 
 def _needs_rewrite(question: str) -> bool:

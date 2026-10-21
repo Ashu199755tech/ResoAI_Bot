@@ -5,6 +5,7 @@ __pycache__/
 dist/
 build/
 .venv/
+venv/
 
 # Environment
 .env
@@ -24,5 +25,5 @@ data/processed/
 data/converted/
 logs/
 *.log
-test_*.py
+/test_*.py
 scripts/test_*.py

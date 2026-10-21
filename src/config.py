@@ -172,6 +172,13 @@ class Settings(BaseSettings):
     teams_app_password: str = ""
 
     # -------------------------------------------------------------------------
+    # Telegram Bot
+    # -------------------------------------------------------------------------
+    # Telegram Bot Token obtained from @BotFather.
+    # Can be set via TELEGRAM_BOT_TOKEN environment variable or .env file.
+    telegram_bot_token: str = ""
+
+    # -------------------------------------------------------------------------
     # Ingestion Scheduler
     # -------------------------------------------------------------------------
     # How often the background scheduler re-syncs employee data and PDFs.
