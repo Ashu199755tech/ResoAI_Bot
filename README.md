@@ -42,8 +42,8 @@ We have containerized the entire application for "one-click" portability, preven
 Ensure you have Docker and Docker Compose installed on your machine.
 
 ```bash
-git clone https://github.com/pathak-shashank-55/sarvagya_ai.git
-cd SarvagyaAI
+git clone https://github.com/Ashu199755tech/ResoAI_Telegram_Bot.git
+cd ResoAI_Telegram_Bot
 
 # Start the environment in detached mode
 docker-compose up -d
