@@ -83,7 +83,7 @@ async def test_handle_message_success():
 
 @pytest.mark.asyncio
 async def test_cmd_debug():
-    """Verify /debug runs decomposer plan."""
+    """Verify /debug displays routing output."""
     update = _create_mock_update("/debug How many people are in HR?")
     context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["How", "many", "people", "are", "in", "HR?"]
@@ -107,4 +107,5 @@ async def test_cmd_debug():
     assert update.message.reply_text.call_count == 2
     final_output = update.message.reply_text.call_args_list[1][0][0]
     assert "Query Decomposer Output" in final_output
-    assert "DataInterpreter" in final_output
+    # When DuckDB lakehouse is active, route shows DuckDB; fallback is DataInterpreter
+    assert ("DuckDB Medallion Lakehouse" in final_output) or ("DataInterpreter" in final_output)

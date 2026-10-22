@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     converted_dir: str = "./data/converted"
 
     # -------------------------------------------------------------------------
+    # Lakehouse (DuckDB Medallion Architecture)
+    # -------------------------------------------------------------------------
+    lakehouse_dir: str = "./data/lakehouse"
+    lakehouse_db_path: str = "./data/lakehouse/resoai_lakehouse.duckdb"
+    lakehouse_bronze_dir: str = "./data/lakehouse/bronze"
+    lakehouse_silver_dir: str = "./data/lakehouse/silver"
+    lakehouse_gold_dir: str = "./data/lakehouse/gold"
+
+    # -------------------------------------------------------------------------
     # Data Interpreter — Entity File Map
     # -------------------------------------------------------------------------
     # Maps entity types to their JSON filenames in the converted directory.

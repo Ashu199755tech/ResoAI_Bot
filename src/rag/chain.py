@@ -85,6 +85,7 @@ from src.rag.prompts import RAG_PROMPT
 from src.rag.cache import get_cached_answer, save_to_cache
 from src.rag.data_interpreter import DataInterpreter
 from src.rag.query_decomposer import QueryDecomposer, QueryPlan
+from src.lakehouse.query_engine import LakehouseQueryEngine
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _interpreter = DataInterpreter()
 _decomposer = QueryDecomposer()
+_lakehouse_engine = LakehouseQueryEngine()
 
 # ---------------------------------------------------------------------------
 # Concurrency tracking — for dynamic thread allocation
@@ -1758,6 +1760,20 @@ async def ask(question: str) -> dict:
             cached_res["time_elapsed_seconds"] = settings.rag_cache_hit_elapsed_seconds
             return cached_res
         # ------------------
+
+        # --- DUCKDB MEDALLION LAKEHOUSE ANALYTICS ---
+        if _lakehouse_engine.is_available:
+            lakehouse_res = _lakehouse_engine.query_smart(question)
+            if lakehouse_res:
+                elapsed = time.monotonic() - start_time
+                logger.info("[Lakehouse] DuckDB Gold answered in %.3fs", elapsed)
+                return {
+                    "answer": lakehouse_res["summary"],
+                    "sources": [{"record_type": "lakehouse_gold", "record_id": "duckdb_gold_mart"}],
+                    "time_elapsed_seconds": round(elapsed, 2),
+                    "pathway": "DuckDB Medallion Lakehouse",
+                }
+        # ---------------------------------------------
 
 
         # --- LLM QUERY DECOMPOSER (REPLACES ALL HARDCODED WORD LISTS) ---

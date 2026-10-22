@@ -137,6 +137,10 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         from src.rag.query_decomposer import QueryDecomposer
         from src.rag.chain import _interpreter
+        from src.lakehouse.query_engine import LakehouseQueryEngine
+
+        lakehouse = LakehouseQueryEngine()
+        lake_match = lakehouse.query_smart(question) if lakehouse.is_available else None
 
         decomposer = QueryDecomposer()
         plan = decomposer.decompose(question)
@@ -152,7 +156,15 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "",
         ]
 
-        if plan.is_structured_query:
+        if lake_match:
+            debug_info.extend([
+                "🦆 *Route:* `DuckDB Medallion Lakehouse (Gold Star Schema)`",
+                f"• *Operation:* `{lake_match.get('operation')}`",
+                f"• *Count / Results:* `{lake_match.get('count')}`",
+                f"• *SQL Query:* `{lake_match.get('sql', 'N/A')}`",
+                f"• *Latency:* `{lake_match.get('time_elapsed', 0)}s`",
+            ])
+        elif plan.is_structured_query:
             itp_result = _interpreter.query(plan.entity, plan.criteria)
             count = itp_result["count"] if itp_result else 0
             matches = itp_result["matches"][:5] if itp_result else []

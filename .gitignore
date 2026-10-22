@@ -23,6 +23,9 @@ data/*.db
 data/*.sqlite3
 data/processed/
 data/converted/
+data/lakehouse/*.duckdb
+data/lakehouse/**/*.parquet
+data/lakehouse/**/*.json
 logs/
 *.log
 /test_*.py
