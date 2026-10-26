@@ -7,6 +7,7 @@ Runs the FastAPI server bound to 0.0.0.0:8000 so anyone on your local network
 
 from __future__ import annotations
 
+import argparse
 import socket
 import sys
 from pathlib import Path
@@ -31,17 +32,22 @@ def get_local_ip() -> str:
 
 
 def main():
-    host = "0.0.0.0"
-    port = 8000
+    parser = argparse.ArgumentParser(description="ResoAI Web Bot Runner")
+    parser.add_argument("--port", type=int, default=8000, help="Port to bind server to (default: 8000)")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host interface to bind to (default: 0.0.0.0)")
+    args = parser.parse_args()
+
+    host = args.host
+    port = args.port
     local_ip = get_local_ip()
 
     print("=" * 70)
     print("🚀 STARTING RESOAI FUTURISTIC WEB CHATBOT")
     print("=" * 70)
-    print(f"\n📍 Local Browser:   http://localhost:{port}/")
+    print(f"\n📍 Local Machine:   http://localhost:{port}/")
     print(f"🌐 Local Network:   http://{local_ip}:{port}/")
-    print(f"🔗 Pre-filled link: http://{local_ip}:{port}/?q=How+many+employees+are+in+HR%3F")
-    print("\n💡 To share globally over the Internet with judges:")
+    print(f"🔗 Direct Query:    http://{local_ip}:{port}/?q=How+many+employees+are+in+HR%3F")
+    print("\n💡 To share globally over the Internet:")
     print("   Run in a separate terminal:")
     print(f"   cloudflared tunnel --url http://localhost:{port}")
     print("   or:")
