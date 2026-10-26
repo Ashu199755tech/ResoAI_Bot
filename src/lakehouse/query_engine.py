@@ -327,4 +327,70 @@ class LakehouseQueryEngine:
                 "time_elapsed": round(elapsed, 4),
             }
 
+        # ── Case 3b: Specific Project Team / Allocations ─────────
+        project_names = {
+            "visionai ocr": "VisionAI OCR",
+            "visionai": "VisionAI OCR",
+            "vision ai": "VisionAI OCR",
+            "resoai": "ResoAI",
+            "cloudmigrate": "CloudMigrate",
+            "cloud migrate": "CloudMigrate",
+            "retailpulse": "RetailPulse",
+            "retail pulse": "RetailPulse",
+            "fraudshield": "FraudShield",
+            "fraud shield": "FraudShield",
+            "phoenix hrms": "Phoenix HRMS",
+            "phoenix": "Phoenix HRMS",
+        }
+
+        matched_project = None
+        for key, val in project_names.items():
+            if re.search(rf"\b{re.escape(key)}\b", q_lower):
+                matched_project = val
+                break
+
+        if matched_project and any(k in q_lower for k in ["who", "team", "working on", "work on", "allocated", "members", "staff", "people", "count", "size"]):
+            p_sql = "SELECT project_id, project_name, domain, client_name, tech_stack FROM dim_project WHERE project_name = ?"
+            proj_info = self.execute_query(p_sql, [matched_project])
+
+            team_sql = """
+                SELECT 
+                    e.full_name,
+                    e.designation,
+                    e.location,
+                    d.department_name
+                FROM fact_employee_allocations f
+                JOIN dim_employee e ON f.employee_key = e.employee_key
+                JOIN dim_project p ON f.project_key = p.project_key
+                JOIN dim_department d ON f.department_key = d.department_key
+                WHERE p.project_name = ?
+                ORDER BY e.full_name
+            """
+            team_members = self.execute_query(team_sql, [matched_project])
+            total_team = len(team_members)
+            elapsed = time.monotonic() - start_time
+
+            p_meta = proj_info[0] if proj_info else {}
+            lines = [
+                f"🚀 **Project Team: {matched_project} (Gold Lakehouse)**\n",
+                f"• **Domain:** {p_meta.get('domain', 'N/A')} | **Client:** {p_meta.get('client_name', 'N/A')}",
+                f"• **Tech Stack:** {p_meta.get('tech_stack', 'N/A')}",
+                f"• **Total Assigned Headcount:** **{total_team}** members\n",
+                "**Team Members (preview):**",
+            ]
+            for idx, m in enumerate(team_members[:12], 1):
+                lines.append(f"{idx}. **{m['full_name']}** — {m['designation']} ({m['department_name']}, {m['location']})")
+            if total_team > 12:
+                lines.append(f"\n_...and {total_team - 12} other specialists allocated to this project._")
+
+            return {
+                "source": "duckdb_gold_lakehouse",
+                "operation": "project_team_lookup",
+                "count": total_team,
+                "matches": team_members,
+                "summary": "\n".join(lines),
+                "sql": team_sql.strip(),
+                "time_elapsed": round(elapsed, 4),
+            }
+
         return None
