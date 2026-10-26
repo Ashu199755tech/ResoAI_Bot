@@ -183,14 +183,33 @@ async def upload_and_ingest(file: UploadFile = File(...)):
         return {"status": "error", "detail": str(exc)}
 
 
-# ── Ask Endpoint ─────────────────────────────────────────
+# ── Ask & Reset Endpoints ─────────────────────────────────
 
+from pathlib import Path
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from src.rag.memory import rewrite_query, add_message
+from src.rag.memory import rewrite_query, add_message, clear_history
 
 class AskRequest(BaseModel):
     question: str
     session_id: str = "default_cli_session"
+
+class ResetRequest(BaseModel):
+    session_id: str
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_ui():
+    """Serve the futuristic neural web chat interface."""
+    ui_path = Path(__file__).resolve().parent / "web" / "index.html"
+    if ui_path.exists():
+        return HTMLResponse(content=ui_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>ResoAI API is live. Web UI file not found.</h1>")
+
+@app.post("/api/reset")
+async def reset_session(request_data: ResetRequest):
+    """Reset conversational session memory."""
+    clear_history(request_data.session_id)
+    return {"status": "success", "message": f"Session {request_data.session_id} memory cleared"}
 
 @app.post("/api/ask")
 async def ask_question(request_data: AskRequest):
@@ -219,7 +238,9 @@ async def ask_question(request_data: AskRequest):
             "status": "success", 
             "answer": result["answer"],
             "time_elapsed_seconds": result.get("time_elapsed_seconds"),
-            "rewritten_query": search_query if search_query != question else None
+            "rewritten_query": search_query if search_query != question else None,
+            "pathway": result.get("pathway", "Hybrid RAG"),
+            "sources": result.get("sources", []),
         }
     except Exception as exc:
         logger.exception("Ask failed")

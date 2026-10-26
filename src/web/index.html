@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ResoAI // Neural Enterprise Agent</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Markdown Renderer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-primary: #05070d;
+      --bg-surface: rgba(10, 16, 28, 0.75);
+      --bg-surface-border: rgba(0, 240, 255, 0.15);
+      --neon-cyan: #00f0ff;
+      --neon-cyan-glow: rgba(0, 240, 255, 0.35);
+      --neon-purple: #9d4edd;
+      --neon-purple-glow: rgba(157, 78, 221, 0.35);
+      --neon-green: #00ff88;
+      --text-main: #e2e8f0;
+      --text-muted: #8492a6;
+      --card-bg: rgba(13, 22, 38, 0.6);
+      --user-card-bg: rgba(0, 240, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--neon-cyan) transparent;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(157, 78, 221, 0.08) 0%, transparent 40%),
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+      color: var(--text-main);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient scanline effect */
+    body::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.35;
+    }
+
+    /* Header HUD */
+    header {
+      background: rgba(8, 12, 22, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bg-surface-border);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 18px var(--neon-cyan-glow);
+    }
+
+    .brand-logo i {
+      color: #05070d;
+      font-size: 20px;
+    }
+
+    .brand-text h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.25rem;
+      letter-spacing: 2px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text .sub {
+      font-size: 0.72rem;
+      color: var(--neon-cyan);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .hud-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .badge-hud {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 240, 255, 0.05);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.6; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.6; }
+    }
+
+    .btn-hud {
+      background: rgba(13, 22, 38, 0.8);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--text-main);
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-hud:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 12px var(--neon-cyan-glow);
+      color: var(--neon-cyan);
+      transform: translateY(-1px);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 20px 140px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Hero / Empty State */
+    .hero-container {
+      margin: 40px auto 20px;
+      text-align: center;
+      max-width: 680px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--neon-purple);
+      color: #d8b4fe;
+      background: rgba(157, 78, 221, 0.1);
+      margin-bottom: 16px;
+      box-shadow: 0 0 15px var(--neon-purple-glow);
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--neon-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* Quick Action Chips */
+    .chips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      text-align: left;
+    }
+
+    .chip-card {
+      background: var(--card-bg);
+      border: 1px solid var(--bg-surface-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+    }
+
+    .chip-card:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 16px var(--neon-cyan-glow);
+      transform: translateY(-2px);
+    }
+
+    .chip-icon {
+      font-size: 1.3rem;
+      color: var(--neon-cyan);
+    }
+
+    .chip-text .label {
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: #fff;
+    }
+
+    .chip-text .subtext {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Chat Messages Stream */
+    .chat-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .message {
+      display: flex;
+      gap: 14px;
+      max-width: 88%;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .avatar.user {
+      background: rgba(0, 240, 255, 0.2);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+    }
+
+    .avatar.bot {
+      background: rgba(157, 78, 221, 0.2);
+      border: 1px solid var(--neon-purple);
+      color: #c084fc;
+      box-shadow: 0 0 10px var(--neon-purple-glow);
+    }
+
+    .msg-body {
+      background: var(--card-bg);
+      border: 1px solid var(--bg-surface-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .message.user .msg-body {
+      background: var(--user-card-bg);
+      border-color: rgba(0, 240, 255, 0.3);
+      color: #fff;
+    }
+
+    /* Message Markdown Styling */
+    .msg-body p { margin-bottom: 10px; }
+    .msg-body p:last-child { margin-bottom: 0; }
+    .msg-body ul, .msg-body ol { margin-left: 20px; margin-bottom: 10px; }
+    .msg-body code {
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--neon-cyan);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+    }
+    .msg-body pre {
+      background: rgba(5, 8, 15, 0.9);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 6px;
+      padding: 12px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+    .msg-body pre code {
+      background: transparent;
+      padding: 0;
+    }
+
+    /* Bot Message Meta Footer */
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .meta-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .meta-pill.lakehouse {
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.06);
+    }
+
+    .meta-pill.rag {
+      border-color: var(--neon-purple);
+      color: #c084fc;
+      background: rgba(157, 78, 221, 0.06);
+    }
+
+    /* Sources Accordion */
+    .sources-btn {
+      background: transparent;
+      border: none;
+      color: var(--neon-cyan);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      text-decoration: underline;
+    }
+
+    .sources-box {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border-left: 2px solid var(--neon-cyan);
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    /* Typing Animation */
+    .typing-indicator {
+      display: flex;
+      gap: 6px;
+      padding: 8px 4px;
+      align-items: center;
+    }
+
+    .typing-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--neon-cyan);
+      border-radius: 50%;
+      animation: blink 1.4s infinite both;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 6px var(--neon-cyan); }
+    }
+
+    /* Floating Dock Input Area */
+    .dock-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 960px;
+      width: calc(100% - 32px);
+      z-index: 100;
+    }
+
+    .dock {
+      background: rgba(8, 14, 26, 0.85);
+      border: 1px solid var(--bg-surface-border);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 10px 14px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.2s ease;
+    }
+
+    .dock:focus-within {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), 0 0 25px var(--neon-cyan-glow);
+    }
+
+    .dock input[type="text"] {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      padding: 8px 6px;
+    }
+
+    .dock input[type="text"]::placeholder {
+      color: #556987;
+    }
+
+    .btn-action {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.1);
+    }
+
+    .btn-send {
+      background: linear-gradient(135deg, var(--neon-cyan), #00a8ff);
+      color: #05070d;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      width: 42px;
+      height: 42px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 14px var(--neon-cyan-glow);
+    }
+
+    .btn-send:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 22px var(--neon-cyan);
+    }
+
+    .btn-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Modal for Upload */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .modal-box {
+      background: #090e1a;
+      border: 1px solid var(--neon-cyan);
+      border-radius: 14px;
+      width: 90%;
+      max-width: 500px;
+      padding: 26px;
+      box-shadow: 0 0 35px var(--neon-cyan-glow);
+      text-align: center;
+    }
+
+    .dropzone {
+      border: 2px dashed rgba(0, 240, 255, 0.4);
+      border-radius: 10px;
+      padding: 36px 20px;
+      margin: 20px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(0, 240, 255, 0.03);
+    }
+
+    .dropzone:hover {
+      border-color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.08);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hud-telemetry { display: none; }
+      .hero-title { font-size: 1.6rem; }
+      .chips-grid { grid-template-columns: 1fr; }
+      header { padding: 12px 16px; }
+      main { padding: 16px 12px 140px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header HUD -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">
+        <i class="fa-solid fa-atom"></i>
+      </div>
+      <div class="brand-text">
+        <h1>RESO AI</h1>
+        <div class="sub">NEURAL CRAG // DUCKDB LAKEHOUSE</div>
+      </div>
+    </div>
+
+    <div class="hud-telemetry">
+      <div class="badge-hud">
+        <div class="pulse-dot"></div>
+        <span>LIVE // 0.00ms</span>
+      </div>
+      <div class="badge-hud">
+        <i class="fa-solid fa-layer-group" style="color:var(--neon-cyan);"></i>
+        <span>DUCKDB GOLD</span>
+      </div>
+      <button class="btn-hud" onclick="openUploadModal()">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Ingest Doc</span>
+      </button>
+      <button class="btn-hud" onclick="clearSession()">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>Reset</span>
+      </button>
+      <button class="btn-hud" onclick="shareCurrentUrl()" title="Copy Shareable Link">
+        <i class="fa-solid fa-share-nodes"></i>
+        <span>Share</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Canvas -->
+  <main id="mainCanvas">
+    
+    <!-- Hero / Empty State -->
+    <div class="hero-container" id="heroSection">
+      <div class="hero-badge">ENTERPRISE AGENTIC HYBRID PIPELINE</div>
+      <h2 class="hero-title">INTELLIGENCE AT THE SPEED OF THOUGHT</h2>
+      <p class="hero-desc">
+        Ask anything about workforce metrics, departments, salaries, or policies. 
+        Driven by deterministic DuckDB Gold Star Schema and semantic vector search.
+      </p>
+
+      <div class="chips-grid">
+        <div class="chip-card" onclick="askPreset('How many employees are in HR in Jaipur?')">
+          <div class="chip-icon"><i class="fa-solid fa-users"></i></div>
+          <div class="chip-text">
+            <div class="label">Headcount Analysis</div>
+            <div class="subtext">"How many employees are in HR in Jaipur?"</div>
+          </div>
+        </div>
+
+        <div class="chip-card" onclick="askPreset('Average salary in Artificial Intelligence')">
+          <div class="chip-icon"><i class="fa-solid fa-chart-line"></i></div>
+          <div class="chip-text">
+            <div class="label">Salary Analytics</div>
+            <div class="subtext">"Average salary in Artificial Intelligence"</div>
+          </div>
+        </div>
+
+        <div class="chip-card" onclick="askPreset('Department summary')">
+          <div class="chip-icon"><i class="fa-solid fa-sitemap"></i></div>
+          <div class="chip-text">
+            <div class="label">Executive Rollup</div>
+            <div class="subtext">"Department headcount & rating summary"</div>
+          </div>
+        </div>
+
+        <div class="chip-card" onclick="askPreset('What is the probation period policy?')">
+          <div class="chip-icon"><i class="fa-solid fa-book-bookmark"></i></div>
+          <div class="chip-text">
+            <div class="label">HR Policy Lookup</div>
+            <div class="subtext">"What is the probation period policy?"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Stream -->
+    <div class="chat-stream" id="chatStream"></div>
+
+  </main>
+
+  <!-- Floating Dock -->
+  <div class="dock-container">
+    <form class="dock" id="queryForm" onsubmit="handleFormSubmit(event)">
+      <button type="button" class="btn-action" onclick="openUploadModal()" title="Upload File (PDF, DOCX, CSV)">
+        <i class="fa-solid fa-paperclip"></i>
+      </button>
+      <input 
+        type="text" 
+        id="queryInput" 
+        placeholder="Ask about employees, policies, salaries, or projects... (Enter to send)" 
+        autocomplete="off"
+      />
+      <button type="submit" class="btn-send" id="sendBtn" title="Transmit Query">
+        <i class="fa-solid fa-arrow-up"></i>
+      </button>
+    </form>
+  </div>
+
+  <!-- Document Ingest Modal -->
+  <div class="modal-overlay" id="uploadModal" onclick="closeUploadModalOnOverlay(event)">
+    <div class="modal-box">
+      <h3 style="font-family:'Orbitron'; font-size:1.15rem; margin-bottom:8px; color:var(--neon-cyan);">
+        <i class="fa-solid fa-file-shield"></i> DOCUMENT INGESTION
+      </h3>
+      <p style="font-size:0.85rem; color:var(--text-muted);">
+        Upload company policies (PDF, DOCX, CSV, XLSX, TXT) to instantly index into the RAG vector store.
+      </p>
+      
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <i class="fa-solid fa-cloud-arrow-up" style="font-size:2.2rem; color:var(--neon-cyan); margin-bottom:10px;"></i>
+        <div style="font-weight:600; font-size:0.9rem;">Click or drag file here</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Supported: PDF, DOCX, XLSX, CSV, JSON</div>
+        <input type="file" id="fileInput" style="display:none;" onchange="handleFileUpload(event)">
+      </div>
+
+      <div id="uploadStatus" style="font-family:'JetBrains Mono'; font-size:0.8rem; min-height:24px;"></div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+        <button class="btn-hud" onclick="closeUploadModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Session ID per browser tab for conversational memory
+    let SESSION_ID = sessionStorage.getItem("resoai_session_id");
+    if (!SESSION_ID) {
+      SESSION_ID = "web_" + Math.random().toString(36).substring(2, 10);
+      sessionStorage.setItem("resoai_session_id", SESSION_ID);
+    }
+
+    const chatStream = document.getElementById("chatStream");
+    const heroSection = document.getElementById("heroSection");
+    const queryInput = document.getElementById("queryInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    // Check for query parameter in URL (e.g. ?q=How+many+employees+in+HR)
+    window.addEventListener("DOMContentLoaded", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlQuery = urlParams.get("q");
+      if (urlQuery && urlQuery.trim()) {
+        queryInput.value = urlQuery.trim();
+        submitQuery(urlQuery.trim());
+      }
+    });
+
+    function askPreset(text) {
+      queryInput.value = text;
+      submitQuery(text);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const text = queryInput.value.trim();
+      if (!text) return;
+      submitQuery(text);
+    }
+
+    async function submitQuery(question) {
+      heroSection.style.display = "none";
+      queryInput.value = "";
+      sendBtn.disabled = true;
+
+      // 1. Render User Message
+      appendMessage("user", question);
+
+      // 2. Render Typing Indicator
+      const typingEl = appendTypingIndicator();
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+      const startTime = performance.now();
+
+      try {
+        const response = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: question,
+            session_id: SESSION_ID
+          })
+        });
+
+        const data = await response.json();
+        typingEl.remove();
+
+        if (data.status === "success") {
+          const latency = data.time_elapsed_seconds 
+            ? data.time_elapsed_seconds.toFixed(2) + "s" 
+            : ((performance.now() - startTime) / 1000).toFixed(2) + "s";
+          
+          appendMessage("bot", data.answer, {
+            pathway: data.pathway || "DuckDB Medallion Lakehouse",
+            latency: latency,
+            sources: data.sources || [],
+            rewritten: data.rewritten_query
+          });
+        } else {
+          appendMessage("bot", `⚠️ **Error:** ${data.detail || "Unable to process query."}`);
+        }
+
+      } catch (err) {
+        typingEl.remove();
+        appendMessage("bot", `❌ **System Error:** Failed to communicate with neural agent: ${err.message}`);
+      } finally {
+        sendBtn.disabled = false;
+        queryInput.focus();
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+    }
+
+    function appendMessage(role, text, meta = null) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${role}`;
+
+      const avatar = document.createElement("div");
+      avatar.className = `avatar ${role}`;
+      avatar.innerHTML = role === "user" 
+        ? '<i class="fa-solid fa-user-astronaut"></i>' 
+        : '<i class="fa-solid fa-microchip"></i>';
+
+      const body = document.createElement("div");
+      body.className = "msg-body";
+
+      // Markdown parsing for bot response
+      if (role === "bot" && window.marked) {
+        body.innerHTML = marked.parse(text);
+      } else {
+        body.innerText = text;
+      }
+
+      // Add Metadata for Bot messages
+      if (role === "bot" && meta) {
+        const metaDiv = document.createElement("div");
+        metaDiv.className = "msg-meta";
+
+        const isLakehouse = (meta.pathway || "").toLowerCase().includes("lakehouse") || (meta.pathway || "").toLowerCase().includes("duckdb");
+        const pillClass = isLakehouse ? "lakehouse" : "rag";
+        const pillIcon = isLakehouse ? "fa-database" : "fa-brain";
+
+        metaDiv.innerHTML = `
+          <div class="meta-pill ${pillClass}">
+            <i class="fa-solid ${pillIcon}"></i>
+            <span>${meta.pathway}</span>
+          </div>
+          <div class="meta-pill">
+            <i class="fa-solid fa-bolt"></i>
+            <span>${meta.latency}</span>
+          </div>
+        `;
+
+        if (meta.sources && meta.sources.length > 0) {
+          const sourcesId = "src_" + Math.random().toString(36).substring(2, 8);
+          metaDiv.innerHTML += `
+            <button class="sources-btn" onclick="toggleSources('${sourcesId}')">
+              [View ${meta.sources.length} sources]
+            </button>
+            <div id="${sourcesId}" class="sources-box" style="display:none; width:100%;">
+              ${meta.sources.map(s => `• <strong>${s.employee_name || s.filename || s.project_name || s.record_id}</strong> (${s.record_type || 'record'})`).join('<br>')}
+            </div>
+          `;
+        }
+
+        body.appendChild(metaDiv);
+      }
+
+      msgDiv.appendChild(avatar);
+      msgDiv.appendChild(body);
+      chatStream.appendChild(msgDiv);
+      return msgDiv;
+    }
+
+    function toggleSources(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = el.style.display === "none" ? "block" : "none";
+      }
+    }
+
+    function appendTypingIndicator() {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "message bot";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar bot";
+      avatar.innerHTML = '<i class="fa-solid fa-microchip"></i>';
+
+      const body = document.createElement("div");
+      body.className = "msg-body";
+      body.innerHTML = `
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <span style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--neon-cyan); margin-left:6px;">SYNTHESIZING...</span>
+        </div>
+      `;
+
+      msgDiv.appendChild(avatar);
+      msgDiv.appendChild(body);
+      chatStream.appendChild(msgDiv);
+      return msgDiv;
+    }
+
+    async function clearSession() {
+      if (confirm("Reset conversation memory and start a new session?")) {
+        try {
+          await fetch("/api/reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: SESSION_ID })
+          });
+        } catch (e) {}
+
+        SESSION_ID = "web_" + Math.random().toString(36).substring(2, 10);
+        sessionStorage.setItem("resoai_session_id", SESSION_ID);
+        chatStream.innerHTML = "";
+        heroSection.style.display = "block";
+      }
+    }
+
+    function shareCurrentUrl() {
+      const lastMsg = document.querySelector(".message.user:last-of-type .msg-body");
+      const query = lastMsg ? lastMsg.innerText : "";
+      const shareUrl = query 
+        ? `${window.location.origin}/?q=${encodeURIComponent(query)}` 
+        : window.location.origin;
+
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        alert(`🔗 Shareable link copied to clipboard!\n\n${shareUrl}\n\nAnyone opening this link can chat with ResoAI immediately!`);
+      });
+    }
+
+    // Modal & Upload
+    function openUploadModal() {
+      document.getElementById("uploadModal").style.display = "flex";
+      document.getElementById("uploadStatus").innerText = "";
+    }
+    function closeUploadModal() {
+      document.getElementById("uploadModal").style.display = "none";
+    }
+    function closeUploadModalOnOverlay(e) {
+      if (e.target.id === "uploadModal") closeUploadModal();
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById("uploadStatus");
+      statusEl.style.color = "var(--neon-cyan)";
+      statusEl.innerText = `⏳ Ingesting '${file.name}' into RAG...`;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const resp = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+        const result = await resp.json();
+
+        if (result.status === "success") {
+          statusEl.style.color = "var(--neon-green)";
+          statusEl.innerText = `✅ Successfully ingested '${file.name}' into ChromaDB!`;
+          setTimeout(() => closeUploadModal(), 2000);
+        } else {
+          statusEl.style.color = "#ff4444";
+          statusEl.innerText = `❌ Error: ${result.detail || "Ingestion failed"}`;
+        }
+      } catch (err) {
+        statusEl.style.color = "#ff4444";
+        statusEl.innerText = `❌ Network Error: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
