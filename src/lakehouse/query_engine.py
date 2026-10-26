@@ -107,6 +107,85 @@ class LakehouseQueryEngine:
         is_salary = any(k in q_lower for k in ["salary", "pay", "compensation", "earn"])
         is_avg = any(k in q_lower for k in ["average", "avg", "mean"])
 
+        # ── Case 0: Specific Employee Profile Lookup ──────────────
+        candidate_name = None
+        name_match = re.search(
+            r"(?:who is|who\'s|tell me about|profile of|info on|details for|about|where is)\s+([A-Za-z\s]{3,35})",
+            question,
+            re.IGNORECASE,
+        )
+        if name_match:
+            cand = name_match.group(1).strip()
+            cand = re.sub(r"[^\w\s]", "", cand).strip()
+            if cand.lower() not in dept_map and cand.lower() not in cities and cand.lower() not in ["the company", "fiftyfive", "fiftyfive technologies"]:
+                candidate_name = cand
+        elif len(question.strip().split()) in (1, 2, 3) and not any(k in q_lower for k in ["how many", "count", "summary", "list", "salary", "project", "department"]):
+            clean_q = re.sub(r"[^\w\s]", "", question).strip()
+            if clean_q.lower() not in dept_map and clean_q.lower() not in cities:
+                candidate_name = clean_q
+
+        if candidate_name:
+            sql = """
+                SELECT 
+                    e.employee_id,
+                    e.full_name,
+                    e.designation,
+                    e.location,
+                    e.skills,
+                    e.email,
+                    e.phone,
+                    CAST(e.joining_date AS VARCHAR) as joining_date,
+                    e.status,
+                    d.department_name,
+                    p.project_name,
+                    p.domain as project_domain,
+                    f.salary,
+                    f.years_of_experience,
+                    f.performance_rating
+                FROM dim_employee e
+                LEFT JOIN fact_employee_allocations f ON e.employee_key = f.employee_key
+                LEFT JOIN dim_department d ON f.department_key = d.department_key
+                LEFT JOIN dim_project p ON f.project_key = p.project_key
+                WHERE lower(e.full_name) = lower(?)
+                   OR lower(e.full_name) LIKE lower(?)
+                LIMIT 5
+            """
+            results = self.execute_query(sql, [candidate_name, f"%{candidate_name}%"])
+            if results:
+                elapsed = time.monotonic() - start_time
+                if len(results) == 1:
+                    r = results[0]
+                    proj_str = f"{r['project_name']} ({r['project_domain']})" if r.get("project_name") else "Unassigned"
+                    summary = (
+                        f"👤 **Employee Profile: {r['full_name']}** (`{r['employee_id']}`)\n"
+                        f"• **Designation:** {r['designation']}\n"
+                        f"• **Department:** {r['department_name'] or 'N/A'}\n"
+                        f"• **Work Location:** {r['location']}\n"
+                        f"• **Current Project:** {proj_str}\n"
+                        f"• **Core Skills:** {r['skills'] or 'N/A'}\n"
+                        f"• **Experience:** {r['years_of_experience']} yrs | **Performance Rating:** {r['performance_rating']}/5.0\n"
+                        f"• **Status:** {r['status']} (Joined {r['joining_date']})\n"
+                        f"• **Contact:** {r['email']} | {r['phone']}"
+                    )
+                else:
+                    lines = [f"Found **{len(results)}** matching employees in Lakehouse:\n"]
+                    for idx, r in enumerate(results, 1):
+                        lines.append(
+                            f"{idx}. **{r['full_name']}** (`{r['employee_id']}`) — {r['designation']}, "
+                            f"{r['department_name']} ({r['location']}) | Project: {r['project_name'] or 'Unassigned'}"
+                        )
+                    summary = "\n".join(lines)
+
+                return {
+                    "source": "duckdb_gold_lakehouse",
+                    "operation": "employee_profile_lookup",
+                    "count": len(results),
+                    "matches": results,
+                    "summary": summary,
+                    "sql": sql.strip(),
+                    "time_elapsed": round(elapsed, 4),
+                }
+
         # ── Case 1: Department Summary / Headcount ──────────────
         if (target_dept or target_city) and (is_count or is_salary):
             where_clauses = []

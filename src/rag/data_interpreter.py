@@ -263,6 +263,77 @@ class DataInterpreter:
             )
         ]
 
+        # Merge Lakehouse (DuckDB) records into DataInterpreter
+        if entity_type == "employee":
+            try:
+                db_path = Path(settings.lakehouse_db_path)
+                if db_path.exists():
+                    import duckdb
+                    con = duckdb.connect(str(db_path), read_only=True)
+                    cols = [
+                        desc[0] for desc in con.execute(
+                            "SELECT e.employee_id, e.first_name, e.last_name, e.full_name as Name, "
+                            "e.email, e.phone, e.designation, d.department_name as department, "
+                            "e.location, e.skills, CAST(e.joining_date AS VARCHAR) as joining_date, "
+                            "p.project_name, f.salary "
+                            "FROM dim_employee e "
+                            "LEFT JOIN fact_employee_allocations f ON e.employee_key = f.employee_key "
+                            "LEFT JOIN dim_department d ON f.department_key = d.department_key "
+                            "LEFT JOIN dim_project p ON f.project_key = p.project_key"
+                        ).description
+                    ]
+                    rows = con.execute(
+                        "SELECT e.employee_id, e.first_name, e.last_name, e.full_name as Name, "
+                        "e.email, e.phone, e.designation, d.department_name as department, "
+                        "e.location, e.skills, CAST(e.joining_date AS VARCHAR) as joining_date, "
+                        "p.project_name, f.salary "
+                        "FROM dim_employee e "
+                        "LEFT JOIN fact_employee_allocations f ON e.employee_key = f.employee_key "
+                        "LEFT JOIN dim_department d ON f.department_key = d.department_key "
+                        "LEFT JOIN dim_project p ON f.project_key = p.project_key"
+                    ).fetchall()
+                    con.close()
+                    lakehouse_employees = [dict(zip(cols, row)) for row in rows]
+
+                    seen_names = {
+                        (r.get("Name") or f"{r.get('first_name', '')} {r.get('last_name', '')}").strip().lower()
+                        for r in records
+                    }
+                    for le in lakehouse_employees:
+                        full_name = str(le.get("Name", "")).strip().lower()
+                        if full_name and full_name not in seen_names:
+                            records.append(le)
+                            seen_names.add(full_name)
+            except Exception as e:
+                logger.warning("Could not merge Lakehouse employees into DataInterpreter: %s", e)
+        elif entity_type == "project":
+            try:
+                db_path = Path(settings.lakehouse_db_path)
+                if db_path.exists():
+                    import duckdb
+                    con = duckdb.connect(str(db_path), read_only=True)
+                    proj_rows = con.execute(
+                        "SELECT project_id, project_name, domain, tech_stack, client_name FROM dim_project"
+                    ).fetchall()
+                    con.close()
+                    seen_projects = {
+                        str(r.get("project_name") or r.get("Project name", "")).strip().lower()
+                        for r in records
+                    }
+                    for pid, pname, pdomain, ptech, pclient in proj_rows:
+                        if pname and pname.strip().lower() not in seen_projects:
+                            records.append({
+                                "project_id": pid,
+                                "project_name": pname,
+                                "Project name": pname,
+                                "domain": pdomain,
+                                "tech_stack": ptech,
+                                "client_name": pclient,
+                            })
+                            seen_projects.add(pname.strip().lower())
+            except Exception as e:
+                logger.warning("Could not merge Lakehouse projects into DataInterpreter: %s", e)
+
         self._record_cache[entity_type] = records
         return records
 

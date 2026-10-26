@@ -1809,11 +1809,34 @@ async def ask(question: str) -> dict:
                 )
 
                 if count == 0:
-                    qualifier = "" if criteria == "__all__" else f" matching '{criteria}'"
-                    answer = (
-                        f"Based on the live data scan, there are **0** {entity_type}(s)"
-                        f"{qualifier}. No matching records were found."
-                    )
+                    if operation == "lookup":
+                        logger.info(
+                            "[Interpreter] Structured lookup for entity=%s criteria=%s returned 0 matches — falling through to HybridRAG",
+                            entity_type, criteria,
+                        )
+                    else:
+                        qualifier = "" if criteria == "__all__" else f" matching '{criteria}'"
+                        answer = (
+                            f"Based on the live data scan, there are **0** {entity_type}(s)"
+                            f"{qualifier}. No matching records were found."
+                        )
+                        _log_retrieval(question, "DataInterpreter", matches, criteria=criteria)
+                        total_time = time.monotonic() - start_time
+                        sources = [{
+                            "record_type": "data_interpreter",
+                            "count_found": 0,
+                            "criteria": criteria,
+                            "entity": entity_type,
+                            "operation": operation,
+                            "filename": settings.interpreter_file_map.get(entity_type, "universal_json_scan"),
+                        }]
+                        save_to_cache(question, answer, sources)
+                        return {
+                            "answer": answer,
+                            "sources": sources,
+                            "time_elapsed_seconds": total_time,
+                            "pathway": "Data Interpreter",
+                        }
                 else:
                     preview_limit = min(settings.rag_context_max_chunks, len(matches))
                     match_listing = ", ".join([m["name"] for m in matches[:preview_limit]])
@@ -1864,10 +1887,18 @@ async def ask(question: str) -> dict:
                                 designation = record.get("designation") or record.get("Designation") or "Employee"
                                 dept = record.get("department") or record.get("Department") or "N/A"
                                 emp_id = record.get("employee_id") or record.get("Employee Id") or "N/A"
+                                loc = record.get("location")
+                                proj = record.get("project_name")
+                                details = []
+                                if loc:
+                                    details.append(f"based in **{loc}**")
+                                if proj:
+                                    details.append(f"allocated to project **{proj}**")
+                                extra_str = f" ({', '.join(details)})" if details else ""
                                 
                                 answer = (
                                     f"I found **{matches[0]['name']}** ({emp_id}). "
-                                    f"They work as a **{designation}** in the **{dept}** department."
+                                    f"They work as a **{designation}** in the **{dept}** department{extra_str}."
                                 )
                             elif entity_type == "holiday":
                                 date = record.get("date") or "N/A"
@@ -1885,26 +1916,27 @@ async def ask(question: str) -> dict:
                             f"{qualifier}. The results include: {match_listing}."
                         )
 
-                # Dynamic Logging for Interpreter
-                _log_retrieval(question, "DataInterpreter", matches, criteria=criteria)
+                    # Dynamic Logging for Interpreter
+                    _log_retrieval(question, "DataInterpreter", matches, criteria=criteria)
 
-                total_time = time.monotonic() - start_time
-                sources = [{
-                    "record_type": "data_interpreter",
-                    "count_found": count,
-                    "criteria": criteria,
-                    "entity": entity_type,
-                    "operation": operation,
-                    "filename": settings.interpreter_file_map.get(entity_type, "universal_json_scan"),
-                }]
+                    total_time = time.monotonic() - start_time
+                    sources = [{
+                        "record_type": "data_interpreter",
+                        "count_found": count,
+                        "criteria": criteria,
+                        "entity": entity_type,
+                        "operation": operation,
+                        "filename": settings.interpreter_file_map.get(entity_type, "universal_json_scan"),
+                    }]
 
-                save_to_cache(question, answer, sources)
+                    save_to_cache(question, answer, sources)
 
-                return {
-                    "answer": answer,
-                    "sources": sources,
-                    "time_elapsed_seconds": total_time
-                }
+                    return {
+                        "answer": answer,
+                        "sources": sources,
+                        "time_elapsed_seconds": total_time,
+                        "pathway": "Data Interpreter",
+                    }
             else:
                 logger.info(
                     "[Interpreter] No records found for entity=%s criteria=%s — falling through to HybridRAG",
