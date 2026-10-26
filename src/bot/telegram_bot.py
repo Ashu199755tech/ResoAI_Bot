@@ -112,6 +112,25 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await safe_reply(update, HELP_MESSAGE)
 
 
+# ---------------------------------------------------------------------------
+# Active query tracking for /stop /cancel support
+# ---------------------------------------------------------------------------
+_active_chat_tasks: dict[int, asyncio.Task] = {}
+
+
+async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /cancel or /stop command to cancel long-running query."""
+    if not update.effective_chat:
+        return
+    chat_id = update.effective_chat.id
+    task = _active_chat_tasks.get(chat_id)
+    if task and not task.done():
+        task.cancel()
+        await safe_reply(update, "⏹️ *Generation cancelled by user.*")
+    else:
+        await safe_reply(update, "ℹ️ No query is currently running.")
+
+
 async def cmd_clear(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /clear or /reset command."""
     if not update.effective_chat:
@@ -200,6 +219,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     chat_id = update.effective_chat.id
     session_id = f"tg_{chat_id}"
+    _active_chat_tasks[chat_id] = asyncio.current_task()
 
     logger.info("Telegram [Chat: %s] received question: %s", chat_id, raw_question)
 
@@ -232,6 +252,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         await safe_reply(update, reply_text)
 
+    except asyncio.CancelledError:
+        stop_typing_event.set()
+        await typing_task
+        logger.info("Telegram [Chat: %s] query cancelled by user", chat_id)
+        # Task was cancelled cleanly via /stop or /cancel
     except Exception as exc:
         stop_typing_event.set()
         await typing_task
@@ -240,6 +265,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             update,
             "⚠️ Sorry, an error occurred while processing your question. Please try again.",
         )
+    finally:
+        _active_chat_tasks.pop(chat_id, None)
 
 
 # ── Bot Factory & Runner ─────────────────────────────────
@@ -253,6 +280,7 @@ def create_telegram_app(token: str) -> Application:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler(["clear", "reset"], cmd_clear))
+    app.add_handler(CommandHandler(["stop", "cancel"], cmd_cancel))
     app.add_handler(CommandHandler("debug", cmd_debug))
 
     # Text messages
