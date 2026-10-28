@@ -369,6 +369,7 @@ def _get_llm(num_thread: int | None = None) -> ChatOllama:
         base_url=settings.ollama_base_url,
         temperature=settings.ollama_temperature,   # was hardcoded 0.1
         num_ctx=settings.ollama_num_ctx,           # was hardcoded 32768
+        num_predict=getattr(settings, "ollama_num_predict", 512),
         num_thread=num_thread or settings.ollama_num_threads,
     )
 
@@ -427,8 +428,25 @@ def _format_docs(docs: list[Document]) -> str:
         else:
             parts.append(f"{label}\n{content}")
         
-    # Keep the final prompt bounded without hardcoding the cap in code.
-    return "\n\n---\n\n".join(parts[: settings.rag_context_max_chunks])
+    # Keep the final prompt bounded by both chunk count AND total character budget
+    # to prevent CPU prompt evaluation timeouts (especially with stitched super-chunks).
+    selected_parts = []
+    total_chars = 0
+    max_chars = getattr(settings, "rag_max_context_chars", 6000)
+
+    for part in parts[: settings.rag_context_max_chunks]:
+        part_len = len(part)
+        if total_chars + part_len > max_chars:
+            remaining = max_chars - total_chars
+            if remaining > 300:
+                selected_parts.append(part[:remaining] + "\n... [context trimmed for length]")
+            elif not selected_parts:
+                selected_parts.append(part[:max_chars] + "\n... [context trimmed for length]")
+            break
+        selected_parts.append(part)
+        total_chars += part_len
+
+    return "\n\n---\n\n".join(selected_parts)
 
 
 # ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ import json
 import logging
 import sqlite3
 import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,8 +35,10 @@ def _get_connection():
     return conn
 
 def _get_stable_hash(text: str) -> str:
-    """Generate a stable MD5 hash for the given text."""
-    return hashlib.md5(text.strip().lower().encode("utf-8")).hexdigest()
+    """Generate a stable MD5 hash ignoring punctuation, trailing marks and extra whitespace."""
+    clean = re.sub(r"[^\w\s]", "", text).strip().lower()
+    clean = " ".join(clean.split())
+    return hashlib.md5(clean.encode("utf-8")).hexdigest()
 
 def init_cache():
     """Initialize the cache table if it doesn't exist."""

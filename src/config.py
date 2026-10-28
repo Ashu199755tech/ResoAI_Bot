@@ -120,15 +120,19 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
 
     # The Ollama model used for generating answers (the "brain").
-    # Pull it first with: ollama pull llama3.2
-    ollama_llm_model: str = "llama3.2"
+    # Uses llama3.2:1b for high-speed local CPU inference (~15-25s vs 180s on CPU).
+    # Override in .env with OLLAMA_LLM_MODEL=llama3.2 if running on GPU.
+    ollama_llm_model: str = "llama3.2:1b"
 
     # The Ollama model used for query decomposition (the "small brain").
     # This model parses natural language queries into structured intent JSON,
     # replacing all hardcoded word lists (noise words, intent signals, listing triggers).
-    # Uses the same model as the main LLM — the 1b model is too safety-tuned
-    # and refuses to parse HR queries about salaries, departments, etc.
-    decomposer_model: str = "llama3.2"
+    # Uses llama3.2:1b (1.2GB) for ultra-fast CPU inference.
+    decomposer_model: str = "llama3.2:1b"
+
+    # Maximum seconds to wait for query decomposition before falling back to heuristics.
+    # Keeps latency low even under high CPU load.
+    decomposer_timeout: float = 4.0
 
     # The Ollama model used for creating vector embeddings during ingestion.
     # Pull it first with: ollama pull nomic-embed-text
@@ -153,10 +157,16 @@ class Settings(BaseSettings):
     # Previously hardcoded as 0.1 inside _get_llm() in chain.py — now configurable.
     ollama_temperature: float = 0.1
 
-    # PERFORMANCE NOTE: Reducing this from 32768 → 16384 supports large 
-    # context expansion (neighbor fetching) while remaining much faster 
-    # than the full 32k window.
-    ollama_num_ctx: int = 16384
+    # PERFORMANCE NOTE: Reduced to 4096 to prevent memory & CPU attention
+    # bottlenecks on CPU-only machines while providing full context headroom.
+    ollama_num_ctx: int = 4096
+
+    # Maximum tokens the LLM can generate in a single response (prevents runaway generation on CPU).
+    ollama_num_predict: int = 512
+
+    # Maximum character budget for context passed to LLM (prevents context explosion).
+    # ~4000 chars provides ~1000 tokens of high-relevance chunks scored by FlashRank.
+    rag_max_context_chars: int = 4000
 
     # -------------------------------------------------------------------------
     # ChromaDB — Vector Database

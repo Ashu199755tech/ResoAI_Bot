@@ -140,14 +140,16 @@ class QueryDecomposer:
         base_url: str | None = None,
         num_ctx: int = 512,
         temperature: float = 0.0,
+        timeout: float | None = None,
     ):
         self.model = model or settings.decomposer_model
         self.base_url = (base_url or settings.ollama_base_url).rstrip("/")
         self.num_ctx = num_ctx
         self.temperature = temperature
+        self.timeout = timeout or getattr(settings, "decomposer_timeout", 4.0)
         logger.info(
-            "[Decomposer] Initialized with model=%s, num_ctx=%d",
-            self.model, self.num_ctx,
+            "[Decomposer] Initialized with model=%s, num_ctx=%d, timeout=%.1fs",
+            self.model, self.num_ctx, self.timeout,
         )
 
     def decompose(self, question: str) -> QueryPlan:
@@ -220,7 +222,7 @@ class QueryDecomposer:
         entities_str = ", ".join(f'"{e}"' for e in valid_entities)
         prompt = DECOMPOSE_PROMPT.format(entities=entities_str, question=question)
 
-        logger.info("[Decomposer] Calling LLM with model=%s, num_ctx=%d", self.model, self.num_ctx)
+        logger.info("[Decomposer] Calling LLM with model=%s, num_ctx=%d (timeout=%.1fs)", self.model, self.num_ctx, self.timeout)
 
         response = httpx.post(
             f"{self.base_url}/api/generate",
@@ -234,7 +236,7 @@ class QueryDecomposer:
                     "num_predict": 100,  # Limit output tokens
                 },
             },
-            timeout=120.0,
+            timeout=self.timeout,
         )
         response.raise_for_status()
 
