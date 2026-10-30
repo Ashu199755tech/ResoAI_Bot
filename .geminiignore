@@ -1,0 +1,19 @@
+# Ignore secrets and environment files from Gemini agent context
+.env*
+*.pem
+*.key
+*.cert
+credentials*
+secrets*
+
+# Ignore heavy binary data and runtime caches
+data/chromadb/
+data/lakehouse/*.duckdb
+data/lakehouse/**/*.parquet
+logs/
+*.log
+.pytest_cache/
+__pycache__/
+venv/
+.venv/
+ai-audit/

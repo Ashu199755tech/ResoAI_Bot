@@ -1,0 +1,4 @@
+# ResoAI — Cursor Rules
+# Follows the canonical single-source-of-truth instructions:
+# See AGENTS.md for architecture, commands, directory map, and guardrails.
+@AGENTS.md

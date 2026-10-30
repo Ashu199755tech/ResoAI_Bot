@@ -1,5 +1,4 @@
 import asyncio
-from pathlib import Path
 from src.ingestion.pipeline import IngestionPipeline
 
 async def run_full_reingestion():

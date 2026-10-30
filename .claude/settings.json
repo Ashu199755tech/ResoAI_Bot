@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/claude-settings.json",
+  "permissions": {
+    "defaultMode": "ask",
+    "allow": [
+      "Bash(make *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(python scripts/*)",
+      "Bash(./venv/bin/pytest *)",
+      "Bash(./venv/bin/ruff *)",
+      "Bash(./venv/bin/python scripts/*)"
+    ],
+    "deny": [
+      "Bash(*rm -rf*)",
+      "Bash(*git push*--force*)",
+      "Bash(*git push*-f*)",
+      "Bash(*DROP TABLE*)",
+      "Bash(*TRUNCATE*)",
+      "Bash(*--no-verify*)",
+      "Bash(*curl * | sh*)",
+      "Edit(.env*)",
+      "Write(.env*)",
+      "Edit(*.pem)",
+      "Write(*.pem)",
+      "Edit(*.key)",
+      "Write(*.key)",
+      "Edit(.github/workflows/*)",
+      "Write(.github/workflows/*)"
+    ]
+  },
+  "guardrails": {
+    "blockDestructiveCommands": true,
+    "blockSecretFileWrites": true,
+    "requireHumanConfirmationForSideEffects": true
+  }
+}

@@ -6,7 +6,6 @@ from datetime import date
 import json
 from unittest.mock import patch
 
-import pytest
 
 from src.ingestion.document_builder import build_employee_document
 from src.keka.models import Employee

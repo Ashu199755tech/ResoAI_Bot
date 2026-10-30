@@ -1,0 +1,20 @@
+# Ignore secrets and environment files from agent context
+.env*
+*.pem
+*.key
+*.cert
+*.pfx
+credentials*
+secrets*
+
+# Ignore vector databases, large data lakes, and caches
+data/chromadb/
+data/lakehouse/*.duckdb
+data/lakehouse/**/*.parquet
+logs/
+*.log
+.pytest_cache/
+__pycache__/
+venv/
+.venv/
+ai-audit/

@@ -126,4 +126,14 @@ Triggers a full rebuild of the system. Consolidates fragmented raw data into sin
 ```
 
 ---
+
+## 🤖 AI Agent Workflow & Standards
+This repository complies with the FiftyFive Technologies [AI Workflow Audit](https://github.com/FiftyfiveTech/ai-workflow-audit) standard:
+- **Canonical Instructions:** [AGENTS.md](AGENTS.md)
+- **Governance & Policy:** [docs/ai-policy.md](docs/ai-policy.md)
+- **Architecture Decisions:** [docs/adr/](docs/adr/)
+- **Reusable Skills:** [.agents/skills/](.agents/skills/)
+- **Human Approval Policy:** [docs/human-approval-list.md](docs/human-approval-list.md)
+
+---
 *Developed by FiftyFive Technologies - Enterprise RAG Division*

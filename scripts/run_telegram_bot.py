@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Convenience launcher for the ResoAI Telegram Bot."""
 
-import os
 import sys
 from pathlib import Path
 

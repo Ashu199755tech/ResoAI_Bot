@@ -1,0 +1,13 @@
+# Code Ownership for ResoAI
+
+# Global maintainers
+* @Ashu199755tech @fiftyfive-lead
+
+# AI Agent Configuration, Rules, and Policies (Sub-check 9.4 & 10.2)
+AGENTS.md @Ashu199755tech @fiftyfive-lead
+CLAUDE.md @Ashu199755tech @fiftyfive-lead
+.cursorrules @Ashu199755tech @fiftyfive-lead
+.claude/ @Ashu199755tech @fiftyfive-lead
+.agents/ @Ashu199755tech @fiftyfive-lead
+docs/ai-* @Ashu199755tech @fiftyfive-lead
+.github/workflows/ @Ashu199755tech @fiftyfive-lead

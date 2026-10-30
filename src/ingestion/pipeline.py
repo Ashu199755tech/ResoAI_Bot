@@ -19,7 +19,6 @@ from pathlib import Path
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.config import settings
@@ -28,9 +27,7 @@ from src.rag.store import get_vector_store
 from src.ingestion.document_builder import (
     BUILDER_REGISTRY,
     build_generic_document,
-    build_misc_document,
 )
-from src.ingestion.universal_converter import convert_inbox
 
 logger = logging.getLogger(__name__)
 

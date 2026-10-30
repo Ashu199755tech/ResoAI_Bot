@@ -84,7 +84,7 @@ from src.rag.store import get_vector_store
 from src.rag.prompts import RAG_PROMPT
 from src.rag.cache import get_cached_answer, save_to_cache
 from src.rag.data_interpreter import DataInterpreter
-from src.rag.query_decomposer import QueryDecomposer, QueryPlan
+from src.rag.query_decomposer import QueryDecomposer
 from src.lakehouse.query_engine import LakehouseQueryEngine
 
 logger = logging.getLogger(__name__)

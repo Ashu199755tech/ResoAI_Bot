@@ -9,8 +9,15 @@ venv/
 
 # Environment
 .env
+*.env.local
 
-
+# AI Agent Personal Overrides & Local Settings
+CLAUDE.local.md
+.claude/settings.local.json
+AGENTS.override.md
+.cursor/settings.local.json
+*.local.md
+ai-audit/
 
 # IDE
 .vscode/

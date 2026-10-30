@@ -13,7 +13,6 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Optional
 
 from telegram import Update
 from telegram.constants import ChatAction
