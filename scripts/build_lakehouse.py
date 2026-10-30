@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description="ResoAI Medallion Lakehouse Builder")
     parser.add_argument("--count", type=int, default=500, help="Number of synthetic employee records to generate")
     parser.add_argument("--sync-vector", action="store_true", help="Sync Gold records to ChromaDB vector store")
+    parser.add_argument("--sync-holidays", action="store_true", help="Delete previous holiday documents and sync only holiday table to ChromaDB")
     args = parser.parse_args()
 
     print("=" * 70)
@@ -56,6 +57,16 @@ def main():
         except Exception as e:
             print(f"   ⚠️ Vector sync skipped/deferred: {e}")
 
+    if args.sync_holidays:
+        print("\n🗓️  Syncing Holiday Table to Vector Store (Replacing Previous Holiday Docs)...")
+        try:
+            from src.lakehouse.vector_sync import delete_and_sync_holiday_table
+            res = delete_and_sync_holiday_table(pipeline)
+            print(f"   Deleted {res['deleted_count']} previous holiday documents.")
+            print(f"   Successfully ingested {res['ingested_count']} holiday table records into ChromaDB!")
+        except Exception as e:
+            print(f"   ⚠️ Holiday sync error: {e}")
+
     # Step 4: Verification Queries
     print("\n⚡ Verifying DuckDB Analytical Queries:")
     engine = LakehouseQueryEngine(str(pipeline.db_path))
@@ -79,6 +90,13 @@ def main():
     if res3:
         print(f"\n   Q: {q3}")
         print(f"   A: {res3['summary']}")
+
+    q4 = "When is Diwali?"
+    res4 = engine.query_smart(q4)
+    if res4:
+        print(f"\n   Q: {q4}")
+        print(f"   A: {res4['summary']}")
+        print(f"   Execution time: {res4['time_elapsed']}s")
 
     elapsed = time.monotonic() - start
     print("\n" + "=" * 70)

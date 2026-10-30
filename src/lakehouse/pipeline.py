@@ -67,6 +67,7 @@ class LakehousePipeline:
                     "departments": len(raw_data.get("departments", [])),
                     "projects": len(raw_data.get("projects", [])),
                     "allocations": len(raw_data.get("allocations", [])),
+                    "holidays": len(raw_data.get("holidays", [])),
                 },
             },
             "data": raw_data,
@@ -158,21 +159,81 @@ class LakehousePipeline:
                 )
             """, [bronze_path_str])
 
+            # 4. Clean Holidays
+            con.execute("DROP TABLE IF EXISTS silver_holidays")
+            has_bronze_holidays = False
+            try:
+                test_h = con.execute(
+                    "SELECT count(*) FROM (SELECT unnest(data.holidays) AS h FROM read_json_auto(?))",
+                    [bronze_path_str],
+                ).fetchone()
+                if test_h and test_h[0] > 0:
+                    has_bronze_holidays = True
+            except Exception:
+                has_bronze_holidays = False
+
+            if has_bronze_holidays:
+                con.execute("""
+                    CREATE TABLE silver_holidays AS 
+                    SELECT 
+                        TRIM(h.id)::VARCHAR AS holiday_id,
+                        TRIM(h.name)::VARCHAR AS holiday_name,
+                        h.date::DATE AS date,
+                        TRIM(h.day)::VARCHAR AS day,
+                        TRIM(h.month)::VARCHAR AS month,
+                        TRIM(COALESCE(h.type, 'Fixed'))::VARCHAR AS holiday_type,
+                        CURRENT_TIMESTAMP AS processed_at
+                    FROM (
+                        SELECT unnest(data.holidays) AS h 
+                        FROM read_json_auto(?)
+                    )
+                """, [bronze_path_str])
+            else:
+                holidays_json = Path(settings.data_dir) / "holidays.json"
+                if holidays_json.exists():
+                    con.execute("""
+                        CREATE TABLE silver_holidays AS 
+                        SELECT 
+                            TRIM(h.id)::VARCHAR AS holiday_id,
+                            TRIM(h.name)::VARCHAR AS holiday_name,
+                            h.date::DATE AS date,
+                            TRIM(h.day)::VARCHAR AS day,
+                            TRIM(h.month)::VARCHAR AS month,
+                            TRIM(COALESCE(h.type, 'Fixed'))::VARCHAR AS holiday_type,
+                            CURRENT_TIMESTAMP AS processed_at
+                        FROM read_json_auto(?) AS h
+                    """, [str(holidays_json)])
+                else:
+                    con.execute("""
+                        CREATE TABLE silver_holidays (
+                            holiday_id VARCHAR,
+                            holiday_name VARCHAR,
+                            date DATE,
+                            day VARCHAR,
+                            month VARCHAR,
+                            holiday_type VARCHAR,
+                            processed_at TIMESTAMP
+                        )
+                    """)
+
             # Export Silver tables to compressed Parquet format
             silver_emp_parquet = self.silver_dir / "silver_employees.parquet"
             silver_proj_parquet = self.silver_dir / "silver_projects.parquet"
             silver_dept_parquet = self.silver_dir / "silver_departments.parquet"
+            silver_hol_parquet = self.silver_dir / "silver_holidays.parquet"
 
             con.execute(f"COPY silver_employees TO '{silver_emp_parquet}' (FORMAT PARQUET)")
             con.execute(f"COPY silver_projects TO '{silver_proj_parquet}' (FORMAT PARQUET)")
             con.execute(f"COPY silver_departments TO '{silver_dept_parquet}' (FORMAT PARQUET)")
+            con.execute(f"COPY silver_holidays TO '{silver_hol_parquet}' (FORMAT PARQUET)")
 
             emp_count = con.execute("SELECT count(*) FROM silver_employees").fetchone()[0]
             proj_count = con.execute("SELECT count(*) FROM silver_projects").fetchone()[0]
             dept_count = con.execute("SELECT count(*) FROM silver_departments").fetchone()[0]
+            hol_count = con.execute("SELECT count(*) FROM silver_holidays").fetchone()[0]
 
-            logger.info("Silver layer processed: %d employees, %d projects, %d departments", emp_count, proj_count, dept_count)
-            return {"employees": emp_count, "projects": proj_count, "departments": dept_count}
+            logger.info("Silver layer processed: %d employees, %d projects, %d departments, %d holidays", emp_count, proj_count, dept_count, hol_count)
+            return {"employees": emp_count, "projects": proj_count, "departments": dept_count, "holidays": hol_count}
 
         finally:
             con.close()
@@ -249,7 +310,66 @@ class LakehousePipeline:
                 JOIN dim_project p ON s.project_id = p.project_id
             """)
 
-            # 5. Gold Analytical Mart: gold_dept_summary (View)
+            # 5. Dimension: dim_holiday (Table & company_holidays View)
+            con.execute("DROP TABLE IF EXISTS dim_holiday CASCADE")
+            # Verify if silver_holidays table exists
+            tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+            if "silver_holidays" in tables:
+                con.execute("""
+                    CREATE TABLE dim_holiday AS
+                    SELECT 
+                        row_number() OVER (ORDER BY date, holiday_name) AS holiday_key,
+                        holiday_id,
+                        holiday_name,
+                        date,
+                        day,
+                        month,
+                        holiday_type
+                    FROM silver_holidays
+                """)
+            else:
+                holidays_json = Path(settings.data_dir) / "holidays.json"
+                if holidays_json.exists():
+                    con.execute("""
+                        CREATE TABLE dim_holiday AS
+                        SELECT 
+                            row_number() OVER (ORDER BY date, holiday_name) AS holiday_key,
+                            TRIM(h.id)::VARCHAR AS holiday_id,
+                            TRIM(h.name)::VARCHAR AS holiday_name,
+                            h.date::DATE AS date,
+                            TRIM(h.day)::VARCHAR AS day,
+                            TRIM(h.month)::VARCHAR AS month,
+                            TRIM(COALESCE(h.type, 'Fixed'))::VARCHAR AS holiday_type
+                        FROM read_json_auto(?) AS h
+                    """, [str(holidays_json)])
+                else:
+                    con.execute("""
+                        CREATE TABLE dim_holiday (
+                            holiday_key INTEGER,
+                            holiday_id VARCHAR,
+                            holiday_name VARCHAR,
+                            date DATE,
+                            day VARCHAR,
+                            month VARCHAR,
+                            holiday_type VARCHAR
+                        )
+                    """)
+
+            con.execute("DROP VIEW IF EXISTS company_holidays")
+            con.execute("""
+                CREATE VIEW company_holidays AS
+                SELECT 
+                    holiday_key,
+                    holiday_id,
+                    holiday_name,
+                    date,
+                    day,
+                    month,
+                    holiday_type
+                FROM dim_holiday
+            """)
+
+            # 6. Gold Analytical Mart: gold_dept_summary (View)
             con.execute("DROP VIEW IF EXISTS gold_dept_summary")
             con.execute("""
                 CREATE VIEW gold_dept_summary AS
@@ -304,19 +424,23 @@ class LakehousePipeline:
             gold_dim_emp_parquet = self.gold_dir / "dim_employee.parquet"
             gold_dim_dept_parquet = self.gold_dir / "dim_department.parquet"
             gold_dim_proj_parquet = self.gold_dir / "dim_project.parquet"
+            gold_dim_hol_parquet = self.gold_dir / "dim_holiday.parquet"
 
             con.execute(f"COPY fact_employee_allocations TO '{gold_fact_parquet}' (FORMAT PARQUET)")
             con.execute(f"COPY dim_employee TO '{gold_dim_emp_parquet}' (FORMAT PARQUET)")
             con.execute(f"COPY dim_department TO '{gold_dim_dept_parquet}' (FORMAT PARQUET)")
             con.execute(f"COPY dim_project TO '{gold_dim_proj_parquet}' (FORMAT PARQUET)")
+            con.execute(f"COPY dim_holiday TO '{gold_dim_hol_parquet}' (FORMAT PARQUET)")
 
             fact_count = con.execute("SELECT count(*) FROM fact_employee_allocations").fetchone()[0]
             dim_emp_count = con.execute("SELECT count(*) FROM dim_employee").fetchone()[0]
+            dim_hol_count = con.execute("SELECT count(*) FROM dim_holiday").fetchone()[0]
 
-            logger.info("Gold Star Schema created: %d facts, %d dim_employees", fact_count, dim_emp_count)
+            logger.info("Gold Star Schema created: %d facts, %d dim_employees, %d dim_holidays", fact_count, dim_emp_count, dim_hol_count)
             return {
                 "fact_records": fact_count,
                 "dim_employees": dim_emp_count,
+                "dim_holidays": dim_hol_count,
             }
 
         finally:

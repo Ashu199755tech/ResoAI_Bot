@@ -66,6 +66,95 @@ def build_project_semantic_doc(record: dict) -> Document:
     return Document(page_content=content, metadata=metadata)
 
 
+def build_holiday_semantic_doc(record: dict) -> Document:
+    """Build a rich semantic Document from a company holiday record."""
+    content = (
+        f"Company Holiday: {record['holiday_name']}\n"
+        f"Month: {record['month']}\n"
+        f"Day: {record['day']}\n"
+        f"Date: {record['date']}\n"
+        f"Type: {record.get('holiday_type', 'Fixed')}\n"
+        f"Official company holiday for FiftyFive Technologies."
+    )
+
+    metadata = {
+        "record_type": "holiday",
+        "record_id": record.get("holiday_id", f"HOL_{record['holiday_name']}"),
+        "holiday_name": record["holiday_name"],
+        "month": record["month"],
+        "day": record["day"],
+        "holiday_date": str(record["date"]),
+        "type": record.get("holiday_type", "Fixed"),
+        "source": "duckdb_gold_lakehouse",
+    }
+    return Document(page_content=content, metadata=metadata)
+
+
+def delete_holiday_documents_from_vector_store() -> int:
+    """Delete all existing holiday documents from the ChromaDB vector store."""
+    vector_store = get_vector_store()
+    col = vector_store._collection
+
+    # Query for all holiday records
+    res = col.get()
+    ids_to_delete = []
+    for doc_id, meta in zip(res.get("ids", []), res.get("metadatas", [])):
+        if meta and (
+            meta.get("record_type") == "holiday"
+            or "holiday" in str(meta.get("source", "")).lower()
+            or "holiday" in str(meta.get("filename", "")).lower()
+        ):
+            ids_to_delete.append(doc_id)
+
+    if ids_to_delete:
+        col.delete(ids=ids_to_delete)
+        logger.info("Deleted %d previous holiday documents from ChromaDB", len(ids_to_delete))
+    else:
+        logger.info("No previous holiday documents found to delete in ChromaDB")
+    return len(ids_to_delete)
+
+
+def sync_holiday_table_to_vector_store(pipeline: LakehousePipeline | None = None) -> int:
+    """Read holiday records from DuckDB Gold layer (dim_holiday/company_holidays) and ingest into ChromaDB."""
+    pipeline = pipeline or LakehousePipeline()
+    con = pipeline.get_connection()
+    try:
+        tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+        hol_table = "company_holidays" if "company_holidays" in tables else ("dim_holiday" if "dim_holiday" in tables else None)
+        if not hol_table:
+            raise ValueError("No dim_holiday or company_holidays table found in DuckDB. Run Lakehouse pipeline first.")
+
+        rows = con.execute(
+            f"SELECT holiday_id, holiday_name, CAST(date AS VARCHAR) as date, day, month, holiday_type FROM {hol_table} ORDER BY date"
+        ).fetchall()
+        cols = [desc[0] for desc in con.description]
+        records = [dict(zip(cols, row)) for row in rows]
+
+        documents = [build_holiday_semantic_doc(r) for r in records]
+
+        if documents:
+            vector_store = get_vector_store()
+            batch_size = 50
+            for i in range(0, len(documents), batch_size):
+                batch = documents[i : i + batch_size]
+                vector_store.add_documents(batch)
+
+        logger.info("Successfully ingested %d holiday records from DuckDB table into ChromaDB", len(documents))
+        return len(documents)
+    finally:
+        con.close()
+
+
+def delete_and_sync_holiday_table(pipeline: LakehousePipeline | None = None) -> dict[str, int]:
+    """Delete previous holiday documents from vector DB, then ingest the new holiday table from DuckDB."""
+    deleted_count = delete_holiday_documents_from_vector_store()
+    ingested_count = sync_holiday_table_to_vector_store(pipeline)
+    return {
+        "deleted_count": deleted_count,
+        "ingested_count": ingested_count,
+    }
+
+
 def sync_lakehouse_to_vector_store(pipeline: LakehousePipeline | None = None, limit: int | None = None) -> int:
     """Read Gold layer records from DuckDB, convert to semantic documents, and insert into ChromaDB."""
     pipeline = pipeline or LakehousePipeline()

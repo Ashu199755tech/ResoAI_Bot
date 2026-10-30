@@ -333,6 +333,37 @@ class DataInterpreter:
                             seen_projects.add(pname.strip().lower())
             except Exception as e:
                 logger.warning("Could not merge Lakehouse projects into DataInterpreter: %s", e)
+        elif entity_type == "holiday":
+            try:
+                db_path = Path(settings.lakehouse_db_path)
+                if db_path.exists():
+                    import duckdb
+                    con = duckdb.connect(str(db_path), read_only=True)
+                    tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+                    hol_table = "company_holidays" if "company_holidays" in tables else ("dim_holiday" if "dim_holiday" in tables else None)
+                    if hol_table:
+                        hol_rows = con.execute(
+                            f"SELECT holiday_id, holiday_name, CAST(date AS VARCHAR) as date, day, month, holiday_type FROM {hol_table}"
+                        ).fetchall()
+                        seen_holidays = {
+                            str(r.get("name") or r.get("Holiday", "")).strip().lower()
+                            for r in records
+                        }
+                        for hid, hname, hdate, hday, hmonth, htype in hol_rows:
+                            if hname and hname.strip().lower() not in seen_holidays:
+                                records.append({
+                                    "id": hid,
+                                    "name": hname,
+                                    "Holiday": hname,
+                                    "date": hdate,
+                                    "day": hday,
+                                    "month": hmonth,
+                                    "type": htype,
+                                })
+                                seen_holidays.add(hname.strip().lower())
+                    con.close()
+            except Exception as e:
+                logger.warning("Could not merge Lakehouse holidays into DataInterpreter: %s", e)
 
         self._record_cache[entity_type] = records
         return records

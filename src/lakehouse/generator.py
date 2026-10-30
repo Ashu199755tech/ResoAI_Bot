@@ -10,11 +10,56 @@ Uses Faker with a deterministic seed to generate rich, realistic enterprise HR d
 
 from __future__ import annotations
 
+import json
 import random
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any, Dict, List
 
 from faker import Faker
+from src.config import settings
+
+DEFAULT_COMPANY_HOLIDAYS = [
+    {"id": "HOL_NEW_YEAR__2026_2026", "name": "New Year - 2026", "date": "2026-01-01", "day": "Thursday", "month": "January", "type": "Fixed"},
+    {"id": "HOL_REPUBLIC_DAY_2026", "name": "Republic Day", "date": "2026-01-26", "day": "Monday", "month": "January", "type": "Fixed"},
+    {"id": "HOL_HOLI_2026", "name": "Holi", "date": "2026-03-04", "day": "Wednesday", "month": "March", "type": "Fixed"},
+    {"id": "HOL_INDEPENDENCE_DAY_2026", "name": "Independence Day", "date": "2026-08-15", "day": "Saturday", "month": "August", "type": "Weekend"},
+    {"id": "HOL_MAHATMA_GANDHI_JAYANTI_2026", "name": "Mahatma Gandhi Jayanti", "date": "2026-10-02", "day": "Friday", "month": "October", "type": "Fixed"},
+    {"id": "HOL_DUSSHERA_2026", "name": "Dusshera", "date": "2026-10-20", "day": "Tuesday", "month": "October", "type": "Fixed"},
+    {"id": "HOL_DIWALI_2026", "name": "Diwali", "date": "2026-11-08", "day": "Sunday", "month": "November", "type": "Weekend"},
+    {"id": "HOL_CHRISTMAS_DAY_2026", "name": "Christmas Day", "date": "2026-12-25", "day": "Friday", "month": "December", "type": "Fixed"},
+    {"id": "HOL_MAKAR_SANKRANTI__PONGAL_2026", "name": "Makar Sankranti / Pongal", "date": "2026-01-14", "day": "Wednesday", "month": "January", "type": "Floater Leave"},
+    {"id": "HOL_RANGPANCHMI_2026", "name": "Rangpanchmi", "date": "2026-03-08", "day": "Sunday", "month": "March", "type": "Weekend"},
+    {"id": "HOL_EID_UL_FITR_2026", "name": "Eid-ul-Fitr", "date": "2026-03-21", "day": "Saturday", "month": "March", "type": "Weekend"},
+    {"id": "HOL_RAM_NAVAMI_2026", "name": "Ram Navami", "date": "2026-03-26", "day": "Thursday", "month": "March", "type": "Floater Leave"},
+    {"id": "HOL_MAHAVEER_JAYANTI_2026", "name": "Mahaveer Jayanti", "date": "2026-03-31", "day": "Tuesday", "month": "March", "type": "Floater Leave"},
+    {"id": "HOL_GOOD_FRIDAY_2026", "name": "Good Friday", "date": "2026-04-03", "day": "Friday", "month": "April", "type": "Floater Leave"},
+    {"id": "HOL_AMBEDKAR_JAYANTI_2026", "name": "Ambedkar Jayanti", "date": "2026-04-14", "day": "Tuesday", "month": "April", "type": "Floater Leave"},
+    {"id": "HOL_EID_AL_ADHA_2026", "name": "Eid Al Adha", "date": "2026-05-27", "day": "Wednesday", "month": "May", "type": "Floater Leave"},
+    {"id": "HOL_ONAM_2026", "name": "Onam", "date": "2026-08-26", "day": "Wednesday", "month": "August", "type": "Floater Leave"},
+    {"id": "HOL_RAKSHA_BANDHAN_2026", "name": "Raksha Bandhan", "date": "2026-08-28", "day": "Friday", "month": "August", "type": "Floater Leave"},
+    {"id": "HOL_JANMASHTAMI_2026", "name": "Janmashtami", "date": "2026-09-04", "day": "Friday", "month": "September", "type": "Floater Leave"},
+    {"id": "HOL_GANESH_CHATURTHI_2026", "name": "Ganesh Chaturthi", "date": "2026-09-14", "day": "Monday", "month": "September", "type": "Floater Leave"},
+    {"id": "HOL_MAHAV_NAVMI__DURGA_POOJA_2026", "name": "Mahav Navmi / Durga Pooja", "date": "2026-10-19", "day": "Monday", "month": "October", "type": "Floater Leave"},
+    {"id": "HOL_BHAI_DOOJ_2026", "name": "Bhai Dooj", "date": "2026-11-11", "day": "Wednesday", "month": "November", "type": "Floater Leave"},
+    {"id": "HOL_CHHATH_POOJA_2026", "name": "Chhath Pooja", "date": "2026-11-15", "day": "Sunday", "month": "November", "type": "Weekend"},
+    {"id": "HOL_GURU_NANAK_JAYANTI_2026", "name": "Guru Nanak Jayanti", "date": "2026-11-24", "day": "Tuesday", "month": "November", "type": "Floater Leave"}
+]
+
+
+def get_company_holidays() -> List[Dict[str, Any]]:
+    """Load official company holidays from data/holidays.json or fallback list."""
+    holidays_file = Path(settings.data_dir) / "holidays.json"
+    if holidays_file.exists():
+        try:
+            with open(holidays_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+        except Exception:
+            pass
+    return DEFAULT_COMPANY_HOLIDAYS
+
 
 LOCATIONS = ["Jaipur", "Gurgaon", "Udaipur", "Bengaluru", "Remote"]
 
@@ -184,6 +229,7 @@ def generate_synthetic_hr_dataset(count: int = 500, seed: int = 42) -> Dict[str,
         "projects": PROJECTS,
         "employees": employees,
         "allocations": allocations,
+        "holidays": get_company_holidays(),
         "meta": {
             "generated_count": count,
             "company_name": "FiftyFive Technologies",

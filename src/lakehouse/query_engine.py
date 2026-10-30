@@ -38,7 +38,7 @@ class LakehouseQueryEngine:
             tables = con.execute("SHOW TABLES").fetchall()
             con.close()
             table_names = [t[0] for t in tables]
-            return "fact_employee_allocations" in table_names
+            return "fact_employee_allocations" in table_names or "dim_holiday" in table_names or "company_holidays" in table_names
         except Exception:
             return False
 
@@ -392,5 +392,114 @@ class LakehouseQueryEngine:
                 "sql": team_sql.strip(),
                 "time_elapsed": round(elapsed, 4),
             }
+
+        # ── Case 4: Company Holidays ────────────────────────────
+        holiday_keywords = [
+            "holiday", "holidays", "floater leave", "floater", "vacation",
+            "diwali", "holi", "eid", "christmas", "republic day", "independence day",
+            "gandhi jayanti", "dusshera", "onam", "pongal", "raksha bandhan",
+            "janmashtami", "ganesh chaturthi", "good friday", "bhai dooj", "chhath",
+            "guru nanak", "mahaveer jayanti", "ram navami", "ambedkar jayanti",
+        ]
+        if any(h in q_lower for h in holiday_keywords):
+            tables = [list(t.values())[0] for t in self.execute_query("SHOW TABLES")]
+            if "dim_holiday" in tables or "company_holidays" in tables:
+                hol_table = "company_holidays" if "company_holidays" in tables else "dim_holiday"
+                all_holidays = self.execute_query(
+                    f"SELECT holiday_id, holiday_name, CAST(date AS VARCHAR) as date, day, month, holiday_type FROM {hol_table} ORDER BY date"
+                )
+
+                # Check for specific holiday name match
+                matched_hol = None
+                for h in all_holidays:
+                    h_clean = re.sub(r"[^a-zA-Z0-9\s]", "", h["holiday_name"].lower())
+                    tokens = [w for w in h_clean.split() if w not in ["day", "2026", "the", "and"]]
+                    # Use word boundaries to avoid substring false positives (e.g. 'holi' matching 'holidays')
+                    if re.search(rf"\b{re.escape(h_clean)}\b", q_lower) or any(
+                        re.search(rf"\b{re.escape(t)}\b", q_lower) for t in tokens if len(t) > 2
+                    ):
+                        matched_hol = h
+                        break
+
+                months = [
+                    "january", "february", "march", "april", "may", "june",
+                    "july", "august", "september", "october", "november", "december"
+                ]
+                target_month = next((m.capitalize() for m in months if m in q_lower), None)
+                is_floater = "floater" in q_lower
+
+                # If specific holiday matched
+                if matched_hol and (any(w in q_lower for w in ["when", "date", "day", "which day", "what day", "is"]) or not target_month):
+                    elapsed = time.monotonic() - start_time
+                    summary = (
+                        f"📅 **Company Holiday: {matched_hol['holiday_name']}**\n"
+                        f"• **Date:** {matched_hol['date']}\n"
+                        f"• **Day:** {matched_hol['day']}\n"
+                        f"• **Month:** {matched_hol['month']}\n"
+                        f"• **Type:** {matched_hol['holiday_type']}"
+                    )
+                    return {
+                        "source": "duckdb_gold_lakehouse",
+                        "operation": "holiday_lookup",
+                        "count": 1,
+                        "matches": [matched_hol],
+                        "summary": summary,
+                        "sql": f"SELECT * FROM {hol_table} WHERE holiday_name = '{matched_hol['holiday_name']}'",
+                        "time_elapsed": round(elapsed, 4),
+                    }
+
+                # If month specified
+                if target_month:
+                    month_hols = [h for h in all_holidays if h["month"].lower() == target_month.lower()]
+                    elapsed = time.monotonic() - start_time
+                    if month_hols:
+                        lines = [f"📅 **Company Holidays in {target_month} (Total: {len(month_hols)})**:\n"]
+                        for idx, h in enumerate(month_hols, 1):
+                            lines.append(f"{idx}. **{h['holiday_name']}** — {h['day']}, {h['date']} ({h['holiday_type']})")
+                        summary = "\n".join(lines)
+                    else:
+                        summary = f"📅 There are no official company holidays in **{target_month}**."
+                    return {
+                        "source": "duckdb_gold_lakehouse",
+                        "operation": "holiday_month_filter",
+                        "count": len(month_hols),
+                        "matches": month_hols,
+                        "summary": summary,
+                        "sql": f"SELECT * FROM {hol_table} WHERE month = '{target_month}'",
+                        "time_elapsed": round(elapsed, 4),
+                    }
+
+                # If floater leaves
+                if is_floater:
+                    floater_hols = [h for h in all_holidays if "floater" in h["holiday_type"].lower()]
+                    elapsed = time.monotonic() - start_time
+                    lines = [f"📅 **Company Floater Leaves (Total: {len(floater_hols)})**:\n"]
+                    for idx, h in enumerate(floater_hols, 1):
+                        lines.append(f"{idx}. **{h['holiday_name']}** — {h['day']}, {h['date']} ({h['month']})")
+                    return {
+                        "source": "duckdb_gold_lakehouse",
+                        "operation": "holiday_floater_filter",
+                        "count": len(floater_hols),
+                        "matches": floater_hols,
+                        "summary": "\n".join(lines),
+                        "sql": f"SELECT * FROM {hol_table} WHERE holiday_type ILIKE '%floater%'",
+                        "time_elapsed": round(elapsed, 4),
+                    }
+
+                # If total count / general list
+                if any(w in q_lower for w in ["how many", "count", "total", "list", "all", "calendar", "summary"]):
+                    elapsed = time.monotonic() - start_time
+                    lines = [f"📅 **Company Holiday Calendar (Total: {len(all_holidays)} Holidays)**:\n"]
+                    for idx, h in enumerate(all_holidays, 1):
+                        lines.append(f"{idx}. **{h['holiday_name']}** — {h['day']}, {h['date']} ({h['holiday_type']})")
+                    return {
+                        "source": "duckdb_gold_lakehouse",
+                        "operation": "holiday_calendar_mart",
+                        "count": len(all_holidays),
+                        "matches": all_holidays,
+                        "summary": "\n".join(lines),
+                        "sql": f"SELECT * FROM {hol_table} ORDER BY date",
+                        "time_elapsed": round(elapsed, 4),
+                    }
 
         return None

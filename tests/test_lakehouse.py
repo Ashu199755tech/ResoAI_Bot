@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import duckdb
-import pytest
 
 from src.lakehouse.generator import generate_synthetic_hr_dataset
 from src.lakehouse.pipeline import LakehousePipeline
 from src.lakehouse.query_engine import LakehouseQueryEngine
-from src.lakehouse.vector_sync import build_employee_semantic_doc, build_project_semantic_doc
+from src.lakehouse.vector_sync import (
+    build_employee_semantic_doc,
+    build_project_semantic_doc,
+    build_holiday_semantic_doc,
+)
 
 
 def test_synthetic_data_generator():
@@ -18,6 +21,8 @@ def test_synthetic_data_generator():
     assert len(data["departments"]) > 0
     assert len(data["projects"]) > 0
     assert len(data["allocations"]) == 50
+    assert "holidays" in data
+    assert len(data["holidays"]) > 0
 
     emp = data["employees"][0]
     assert "employee_id" in emp
@@ -50,13 +55,16 @@ def test_lakehouse_medallion_pipeline(tmp_path):
     assert silver_stats["employees"] == 30
     assert (silver_dir / "silver_employees.parquet").exists()
     assert (silver_dir / "silver_projects.parquet").exists()
+    assert (silver_dir / "silver_holidays.parquet").exists()
 
     # 3. Gold
     gold_stats = pipeline.process_gold()
     assert gold_stats["fact_records"] == 30
     assert gold_stats["dim_employees"] == 30
+    assert gold_stats["dim_holidays"] > 0
     assert (gold_dir / "fact_employee_allocations.parquet").exists()
     assert (gold_dir / "dim_employee.parquet").exists()
+    assert (gold_dir / "dim_holiday.parquet").exists()
 
     # 4. Query Gold Star Schema directly
     con = duckdb.connect(str(db_file))
@@ -65,6 +73,9 @@ def test_lakehouse_medallion_pipeline(tmp_path):
 
     city_summary = con.execute("SELECT * FROM gold_city_headcount").fetchall()
     assert len(city_summary) > 0
+
+    holidays = con.execute("SELECT * FROM company_holidays").fetchall()
+    assert len(holidays) > 0
     con.close()
 
 
@@ -98,6 +109,16 @@ def test_lakehouse_query_engine(tmp_path):
     res_dept = engine.query_smart("Department summary")
     assert res_dept is not None
     assert "Department Headcount" in res_dept["summary"]
+
+    # Test holiday queries
+    res_hol = engine.query_smart("When is Diwali?")
+    assert res_hol is not None
+    assert "Diwali" in res_hol["summary"]
+    assert "Date:" in res_hol["summary"]
+
+    res_hol_month = engine.query_smart("Holidays in October")
+    assert res_hol_month is not None
+    assert "October" in res_hol_month["summary"]
 
 
 def test_semantic_document_builders():
@@ -139,3 +160,16 @@ def test_semantic_document_builders():
     proj_doc = build_project_semantic_doc(proj_record)
     assert "ResoAI" in proj_doc.page_content
     assert proj_doc.metadata["record_type"] == "project"
+
+    hol_record = {
+        "holiday_id": "HOL_DIWALI_2026",
+        "holiday_name": "Diwali",
+        "date": "2026-11-08",
+        "day": "Sunday",
+        "month": "November",
+        "holiday_type": "Weekend",
+    }
+    hol_doc = build_holiday_semantic_doc(hol_record)
+    assert "Diwali" in hol_doc.page_content
+    assert hol_doc.metadata["record_type"] == "holiday"
+    assert hol_doc.metadata["holiday_name"] == "Diwali"
