@@ -51,8 +51,8 @@ flowchart TD
 
 ### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/Ashu199755tech/ResoAI_Telegram_Bot.git
-cd ResoAI_Telegram_Bot
+git clone https://github.com/Ashu199755tech/ResoAI_Bot.git
+cd ResoAI_Bot
 ```
 
 ### Step 2: Install & Pull Ollama Models
