@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ResoAI DuckDB Sample Tables</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 8mm 12mm 8mm 12mm;
+    @bottom-right {
+      content: "Page " counter(page) " of 3";
+      font-size: 7.5pt;
+      color: #64748b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    @bottom-left {
+      content: "ResoAI DuckDB Medallion Lakehouse • Live Sample Table Data • FiftyFive Technologies";
+      font-size: 7.5pt;
+      color: #94a3b8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    font-size: 8pt;
+    line-height: 1.32;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* HEADER BANNER */
+  .header-card {
+    background: #0f172a;
+    color: #ffffff;
+    padding: 9px 14px;
+    border-radius: 5px;
+    margin-bottom: 7px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .header-title {
+    font-size: 13pt;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.3px;
+  }
+
+  .header-subtitle {
+    font-size: 7.8pt;
+    color: #94a3b8;
+  }
+
+  .header-badge {
+    background: #0284c7;
+    color: #ffffff;
+    padding: 2.5px 9px;
+    border-radius: 9999px;
+    font-size: 6.8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* TABLE CONTAINER */
+  .table-container {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 6px 9px;
+    margin-bottom: 7px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  }
+
+  .table-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .table-title {
+    font-size: 9pt;
+    font-weight: 800;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #0f172a;
+    margin-right: 6px;
+  }
+
+  .table-subtitle {
+    font-size: 7.2pt;
+    color: #64748b;
+  }
+
+  .badge-layer {
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1.5px 6px;
+    border-radius: 3px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  /* DATA TABLE */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 6.8pt;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .data-table th {
+    background: #1e293b;
+    color: #f8fafc;
+    padding: 3px 5px;
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+    border-right: 1px solid #334155;
+    font-size: 6.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .data-table th:last-child {
+    border-right: none;
+  }
+
+  .data-table td {
+    padding: 2.5px 5px;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #f1f5f9;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 6.6pt;
+    color: #334155;
+    white-space: nowrap;
+  }
+
+  .data-table td:last-child {
+    border-right: none;
+  }
+
+  .data-table tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 6pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .badge-fixed {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+  }
+
+  .badge-floater {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+
+  .badge-weekend {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+  }
+
+  .badge-active {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ==================== PAGE 1 ==================== -->
+  <div class="header-card">
+    <div>
+      <div class="header-title">DuckDB Medallion Lakehouse — Live Sample Data</div>
+      <div class="header-subtitle">Section 1: Analytical Aggregation Marts (Headcounts, Compensation & Staffing)</div>
+    </div>
+    <span class="header-badge">Gold Analytics Marts</span>
+  </div>
+
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">gold_dept_summary</span>
+          <span class="table-subtitle">Department Headcounts, Compensation Ranges & Experience Metrics (Full 8 Departments)</span>
+        </div>
+        <span class="badge-layer">Gold Mart</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Department</th><th>Hub</th><th>Headcount</th><th>Avg Salary</th><th>Min Salary</th><th>Max Salary</th><th>Avg Rating</th><th>Avg Exp (Yrs)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Product & Design</td><td>Gurgaon</td><td>71</td><td>₹1,363,616.75</td><td>₹621,493.00</td><td>₹2,086,923.00</td><td>4.03 ★</td><td>6.30</td></tr><tr><td>Data Analytics</td><td>Udaipur</td><td>67</td><td>₹1,464,269.67</td><td>₹628,851.00</td><td>₹2,087,739.00</td><td>3.91 ★</td><td>6.80</td></tr><tr><td>Quality Assurance</td><td>Jaipur</td><td>64</td><td>₹1,123,291.48</td><td>₹631,593.00</td><td>₹1,644,856.00</td><td>3.90 ★</td><td>5.00</td></tr><tr><td>Human Resource</td><td>Jaipur</td><td>64</td><td>₹1,621,220.58</td><td>₹650,007.00</td><td>₹2,549,100.00</td><td>3.93 ★</td><td>7.70</td></tr><tr><td>Engineering</td><td>Jaipur</td><td>64</td><td>₹1,706,846.27</td><td>₹641,473.00</td><td>₹2,533,701.00</td><td>3.92 ★</td><td>8.20</td></tr><tr><td>Artificial Intelligence</td><td>Jaipur</td><td>59</td><td>₹1,523,989.95</td><td>₹624,696.00</td><td>₹2,514,181.00</td><td>4.05 ★</td><td>7.10</td></tr><tr><td>Sales & Marketing</td><td>Bengaluru</td><td>58</td><td>₹1,402,571.52</td><td>₹657,967.00</td><td>₹2,075,601.00</td><td>3.89 ★</td><td>6.60</td></tr><tr><td>DevOps & Cloud</td><td>Gurgaon</td><td>53</td><td>₹1,348,759.55</td><td>₹644,561.00</td><td>₹2,091,098.00</td><td>4.03 ★</td><td>6.20</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">gold_city_headcount</span>
+          <span class="table-subtitle">Geographic Workforce Distribution & Average Salary per City Hub (Full 5 Locations)</span>
+        </div>
+        <span class="badge-layer">Gold Mart</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Office / Location</th><th>Total Headcount</th><th>Departments Active</th><th>Average Salary (INR)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Gurgaon</td><td>104</td><td>8</td><td>₹1,399,766.89</td></tr><tr><td>Remote</td><td>103</td><td>8</td><td>₹1,418,707.34</td></tr><tr><td>Jaipur</td><td>99</td><td>8</td><td>₹1,447,073.85</td></tr><tr><td>Bengaluru</td><td>99</td><td>8</td><td>₹1,518,278.63</td></tr><tr><td>Udaipur</td><td>95</td><td>8</td><td>₹1,445,116.77</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">gold_project_staffing</span>
+          <span class="table-subtitle">Enterprise Client Engagements & Engineering Team Allocations (Full 6 Projects)</span>
+        </div>
+        <span class="badge-layer">Gold Mart</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Project Name</th><th>Industry Domain</th><th>Client / Engagement</th><th>Team Size</th><th>Team Rating</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>VisionAI OCR</td><td>Computer Vision</td><td>HealthCorp Global</td><td>92</td><td>3.93 ★</td></tr><tr><td>ResoAI</td><td>Enterprise AI / NLP</td><td>FiftyFive Technologies Internal</td><td>88</td><td>4.00 ★</td></tr><tr><td>CloudMigrate</td><td>Cloud Infrastructure</td><td>FinTech Alliance</td><td>87</td><td>3.94 ★</td></tr><tr><td>RetailPulse</td><td>E-Commerce Analytics</td><td>OmniRetail Inc</td><td>80</td><td>3.94 ★</td></tr><tr><td>FraudShield</td><td>Cybersecurity & Fraud Detection</td><td>Apex Banking Group</td><td>77</td><td>4.02 ★</td></tr><tr><td>Phoenix HRMS</td><td>HR SaaS Platform</td><td>Keka Systems Partner</td><td>76</td><td>3.92 ★</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+
+  <div class="page-break"></div>
+
+  <!-- ==================== PAGE 2 ==================== -->
+  <div class="header-card">
+    <div>
+      <div class="header-title">DuckDB Medallion Lakehouse — Live Sample Data</div>
+      <div class="header-subtitle">Section 2: Company Calendar & Organizational Dimensions</div>
+    </div>
+    <span class="header-badge">Core Dimensions</span>
+  </div>
+
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">company_holidays</span>
+          <span class="table-subtitle">Official FiftyFive Technologies 2026 Corporate Holiday Calendar (Sample Major Holidays)</span>
+        </div>
+        <span class="badge-layer">Holiday Dimension</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Holiday Name</th><th>Date</th><th>Day of Week</th><th>Month</th><th>Classification</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>New Year - 2026</td><td>2026-01-01</td><td>Thursday</td><td>January</td><td><span class="badge badge-fixed">Fixed</span></td></tr><tr><td>Makar Sankranti / Pongal</td><td>2026-01-14</td><td>Wednesday</td><td>January</td><td><span class="badge badge-floater">Floater Leave</span></td></tr><tr><td>Republic Day</td><td>2026-01-26</td><td>Monday</td><td>January</td><td><span class="badge badge-fixed">Fixed</span></td></tr><tr><td>Holi</td><td>2026-03-04</td><td>Wednesday</td><td>March</td><td><span class="badge badge-fixed">Fixed</span></td></tr><tr><td>Rangpanchmi</td><td>2026-03-08</td><td>Sunday</td><td>March</td><td><span class="badge badge-weekend">Weekend</span></td></tr><tr><td>Eid-ul-Fitr</td><td>2026-03-21</td><td>Saturday</td><td>March</td><td><span class="badge badge-weekend">Weekend</span></td></tr><tr><td>Ram Navami</td><td>2026-03-26</td><td>Thursday</td><td>March</td><td><span class="badge badge-floater">Floater Leave</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">dim_department</span>
+          <span class="table-subtitle">Business Units & Primary Physical Operating Hubs (Full 8 Departments)</span>
+        </div>
+        <span class="badge-layer">Dept Dimension</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Dept ID</th><th>Department Name</th><th>Primary Operating Hub</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>DEP01</td><td>Artificial Intelligence</td><td>Jaipur</td></tr><tr><td>DEP02</td><td>Engineering</td><td>Jaipur</td></tr><tr><td>DEP03</td><td>Product & Design</td><td>Gurgaon</td></tr><tr><td>DEP04</td><td>Human Resource</td><td>Jaipur</td></tr><tr><td>DEP05</td><td>DevOps & Cloud</td><td>Gurgaon</td></tr><tr><td>DEP06</td><td>Quality Assurance</td><td>Jaipur</td></tr><tr><td>DEP07</td><td>Sales & Marketing</td><td>Bengaluru</td></tr><tr><td>DEP08</td><td>Data Analytics</td><td>Udaipur</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">dim_project</span>
+          <span class="table-subtitle">Innovation Initiatives, Industry Domains & Technology Stacks (Full 6 Projects)</span>
+        </div>
+        <span class="badge-layer">Project Dimension</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Project ID</th><th>Project Name</th><th>Domain</th><th>Tech Stack</th><th>Client</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>PRJ01</td><td>ResoAI</td><td>Enterprise AI / NLP</td><td>Python, Ollama, ChromaDB, FastAPI, LangChain</td><td>FiftyFive Technologies Internal</td></tr><tr><td>PRJ02</td><td>VisionAI OCR</td><td>Computer Vision</td><td>Python, PyTorch, OpenCV, Fastify, Docker</td><td>HealthCorp Global</td></tr><tr><td>PRJ03</td><td>CloudMigrate</td><td>Cloud Infrastructure</td><td>AWS, Terraform, Kubernetes, Go</td><td>FinTech Alliance</td></tr><tr><td>PRJ04</td><td>RetailPulse</td><td>E-Commerce Analytics</td><td>React, Node.js, PostgreSQL, Redis</td><td>OmniRetail Inc</td></tr><tr><td>PRJ05</td><td>FraudShield</td><td>Cybersecurity & Fraud Detection</td><td>Python, Scikit-learn, Kafka, ClickHouse</td><td>Apex Banking Group</td></tr><tr><td>PRJ06</td><td>Phoenix HRMS</td><td>HR SaaS Platform</td><td>Next.js, FastAPI, GraphQL, MongoDB</td><td>Keka Systems Partner</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+
+  <div class="page-break"></div>
+
+  <!-- ==================== PAGE 3 ==================== -->
+  <div class="header-card">
+    <div>
+      <div class="header-title">DuckDB Medallion Lakehouse — Live Sample Data</div>
+      <div class="header-subtitle">Section 3: Workforce Directory & Analytical Star Schema Fact Model</div>
+    </div>
+    <span class="header-badge">Fact & Employee Dimension</span>
+  </div>
+
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">dim_employee</span>
+          <span class="table-subtitle">Workforce Directory with Designations, Skills Taxonomy & Locations (Sample 6 Employees)</span>
+        </div>
+        <span class="badge-layer">Employee Dimension</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Emp ID</th><th>Employee Name</th><th>Designation / Role</th><th>Location</th><th>Core Skills</th><th>Joining Date</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>EMP0001</td><td>Isaac Bakshi</td><td>Associate Software Engineer</td><td>Udaipur</td><td>Microservices, FastAPI, Java</td><td>2022-09-30</td><td><span class="badge badge-active">Active</span></td></tr><tr><td>EMP0002</td><td>Ayushman Chander</td><td>Head of AI</td><td>Gurgaon</td><td>NLP, Python, RAG, PyTorch, HuggingFace</td><td>2026-02-10</td><td><span class="badge badge-active">Active</span></td></tr><tr><td>EMP0003</td><td>Arunima Ahuja</td><td>Associate Software Engineer</td><td>Bengaluru</td><td>Java, Python, Go, Node.js, Microservices</td><td>2021-01-31</td><td><span class="badge badge-active">Active</span></td></tr><tr><td>EMP0004</td><td>Jagrati Padmanabhan</td><td>Senior QA Lead</td><td>Gurgaon</td><td>Automation Testing, Selenium, Postman, API Testing</td><td>2020-10-11</td><td><span class="badge badge-active">Active</span></td></tr><tr><td>EMP0005</td><td>Janaki Handa</td><td>QA Tester</td><td>Udaipur</td><td>Postman, Selenium, API Testing, PyTest, Cypress</td><td>2020-10-19</td><td><span class="badge badge-active">Active</span></td></tr><tr><td>EMP0006</td><td>Janya Gaba</td><td>ML Engineer</td><td>Jaipur</td><td>LLMs, HuggingFace, LangChain</td><td>2023-07-16</td><td><span class="badge badge-active">On Notice</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  
+    <div class="table-container">
+      <div class="table-header-row">
+        <div>
+          <span class="table-title">fact_employee_allocations</span>
+          <span class="table-subtitle">Quantitative Fact Table with Joined Context (Salaries, Ratings, Leaves & Allocations)</span>
+        </div>
+        <span class="badge-layer">Star Schema Fact</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Fact ID</th><th>Emp ID</th><th>Employee Name</th><th>Department</th><th>Project</th><th>Salary (CTC)</th><th>Exp (Yrs)</th><th>Rating</th><th>Leave Days</th><th>Alloc %</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>EMP0001</td><td>Isaac Bakshi</td><td>Engineering</td><td>RetailPulse</td><td>₹649,256.00</td><td>1.90</td><td>3.60 ★</td><td>20</td><td>100</td></tr><tr><td>2</td><td>EMP0002</td><td>Ayushman Chander</td><td>Artificial Intelligence</td><td>CloudMigrate</td><td>₹2,474,987.00</td><td>12.00</td><td>4.70 ★</td><td>14</td><td>100</td></tr><tr><td>3</td><td>EMP0003</td><td>Arunima Ahuja</td><td>Engineering</td><td>ResoAI</td><td>₹667,052.00</td><td>3.20</td><td>3.80 ★</td><td>24</td><td>100</td></tr><tr><td>4</td><td>EMP0004</td><td>Jagrati Padmanabhan</td><td>Quality Assurance</td><td>CloudMigrate</td><td>₹1,526,006.00</td><td>7.90</td><td>3.90 ★</td><td>15</td><td>100</td></tr><tr><td>5</td><td>EMP0005</td><td>Janaki Handa</td><td>Quality Assurance</td><td>CloudMigrate</td><td>₹699,840.00</td><td>2.80</td><td>3.60 ★</td><td>14</td><td>100</td></tr><tr><td>6</td><td>EMP0006</td><td>Janya Gaba</td><td>Artificial Intelligence</td><td>RetailPulse</td><td>₹1,122,581.00</td><td>4.60</td><td>4.20 ★</td><td>8</td><td>100</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+
+</body>
+</html>

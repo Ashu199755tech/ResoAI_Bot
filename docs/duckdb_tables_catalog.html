@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ResoAI DuckDB Medallion Lakehouse — Table & Data Catalog</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 8mm 11mm 8mm 11mm;
+    @bottom-right {
+      content: "Page " counter(page);
+      font-size: 7.5pt;
+      color: #64748b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    @bottom-left {
+      content: "ResoAI DuckDB Medallion Lakehouse Catalog • FiftyFive Technologies Enterprise Practice";
+      font-size: 7.5pt;
+      color: #94a3b8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    font-size: 8pt;
+    line-height: 1.32;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* HEADER HERO CARD */
+  .header-card {
+    background: linear-gradient(135deg, #090d16 0%, #111827 50%, #1f2937 100%);
+    color: #ffffff;
+    padding: 12px 18px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    border: 1px solid #374151;
+  }
+
+  .header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+
+  .header-card h1 {
+    font-size: 16pt;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    color: #f9fafb;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header-card .badge-live {
+    background-color: #065f46;
+    color: #a7f3d0;
+    font-size: 7pt;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid #059669;
+  }
+
+  .header-card .sub-title {
+    font-size: 8.5pt;
+    color: #9ca3af;
+    margin-bottom: 8px;
+  }
+
+  .meta-stats {
+    display: flex;
+    gap: 18px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+
+  .stat-pill {
+    display: inline-flex;
+    flex-direction: column;
+  }
+
+  .stat-label {
+    font-size: 6.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #9ca3af;
+  }
+
+  .stat-val {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+  /* MASTER INVENTORY TABLE */
+  .inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .inventory-table th {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    text-align: left;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .inventory-table td {
+    padding: 3.5px 8px;
+    font-size: 7.2pt;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  /* BADGES */
+  .badge {
+    display: inline-block;
+    padding: 1.5px 6px;
+    border-radius: 3px;
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .badge-gold {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  .badge-silver {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+
+  .badge-bronze {
+    background-color: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+  }
+
+  .badge-count {
+    background-color: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    font-size: 6.8pt;
+    padding: 1.5px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+
+  .bronze-box {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-left: 3px solid #ea580c;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 7.2pt;
+    color: #431407;
+  }
+
+  /* SECTION DIVIDERS */
+  .section-header {
+    margin: 2px 0 8px 0;
+    padding: 5px 10px;
+    background: #f8fafc;
+    border-left: 3px solid #0284c7;
+    border-radius: 0 4px 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .section-title {
+    font-size: 9.2pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .section-subtitle {
+    font-size: 7pt;
+    color: #64748b;
+  }
+
+  /* TABLE CARD CONTAINER */
+  .table-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 8px 11px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .table-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+
+  .table-identity {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .table-name {
+    font-size: 9.2pt;
+    font-weight: 800;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #0f172a;
+  }
+
+  .table-desc {
+    font-size: 7.2pt;
+    color: #475569;
+    margin-bottom: 5px;
+    line-height: 1.3;
+  }
+
+  .sub-heading {
+    font-size: 6.8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    margin: 3px 0 2px 0;
+  }
+
+  /* COMPACT SCHEMA GRID (2-Column Layout) */
+  .schema-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5px 8px;
+    background: #f8fafc;
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 4px;
+  }
+
+  .schema-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 6.6pt;
+    overflow: hidden;
+  }
+
+  .col-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .type-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #0284c7;
+    font-size: 6.3pt;
+    background: #e0f2fe;
+    padding: 0.5px 3px;
+    border-radius: 2px;
+  }
+
+  .role-tag {
+    font-size: 6.3pt;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* DATA TABLE PREVIEW */
+  .data-table-wrapper {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 6.8pt;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .data-table th {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 2.5px 4.5px;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+    border-right: 1px solid #334155;
+    font-size: 6.3pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .data-table th:last-child {
+    border-right: none;
+  }
+
+  .data-table td {
+    padding: 2px 4.5px;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #f1f5f9;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 6.5pt;
+    color: #334155;
+    word-break: break-word;
+  }
+
+  .data-table td:last-child {
+    border-right: none;
+  }
+
+  .data-table tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  /* RECORD INSPECTOR CARD */
+  .record-inspector {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 4px;
+    padding: 5px 7px;
+    margin-top: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .record-inspector-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2.5px 8px;
+  }
+
+  .ri-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ri-key {
+    color: #94a3b8;
+    font-size: 5.8pt;
+    text-transform: uppercase;
+  }
+
+  .ri-val {
+    color: #38bdf8;
+    font-weight: 600;
+    font-size: 6.5pt;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .null-val {
+    color: #94a3b8;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+  <!-- PAGE 1: COVER & MASTER INVENTORY -->
+  <div class="header-card">
+    <div class="header-title-row">
+      <h1>ResoAI DuckDB Medallion Lakehouse</h1>
+      <span class="badge-live">Live Embedded Lakehouse</span>
+    </div>
+    <div class="sub-title">Complete Database Schema, Star Schema Dimensional Architecture & Live Sample Data Catalog</div>
+    <div class="meta-stats">
+      <div class="stat-pill">
+        <span class="stat-label">Engine</span>
+        <span class="stat-val">Embedded DuckDB v2.0</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Total Tables / Views</span>
+        <span class="stat-val">13 Tables</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Total Managed Records</span>
+        <span class="stat-val">1,619 Records</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Storage Architecture</span>
+        <span class="stat-val">Medallion (Bronze / Silver / Gold Parquet)</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Execution Speed</span>
+        <span class="stat-val">&lt; 200 ms (Sub-second SQL)</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Catalog Generated</span>
+        <span class="stat-val" style="color: #cbd5e1;">October 30, 2026 • 03:38 PM IST</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-weight: 700; font-size: 8.8pt; color: #0f172a; margin-bottom: 4px;">
+    Medallion Architecture Master Inventory
+  </div>
+  <table class="inventory-table">
+    <thead>
+      <tr>
+        <th style="width: 55px;">Layer</th>
+        <th style="width: 150px;">Category</th>
+        <th>Table / View Name</th>
+        <th style="width: 70px; text-align: right;">Total Rows</th>
+        <th style="width: 60px; text-align: right;">Columns</th>
+        <th>Storage Format & Primary Architectural Role</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Fact Table</strong></td>
+        <td><code class="col-code">fact_employee_allocations</code></td>
+        <td style="text-align: right; font-weight: 700;">500</td>
+        <td style="text-align: right;">9</td>
+        <td style="color: #475569;">Central quantitative fact table recording salary, experience, performance score, leav...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Dimension Table</strong></td>
+        <td><code class="col-code">dim_employee</code></td>
+        <td style="text-align: right; font-weight: 700;">500</td>
+        <td style="text-align: right;">12</td>
+        <td style="color: #475569;">Conformed dimension containing normalized employee biographical, contact, role, skill...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Dimension Table</strong></td>
+        <td><code class="col-code">dim_department</code></td>
+        <td style="text-align: right; font-weight: 700;">8</td>
+        <td style="text-align: right;">4</td>
+        <td style="color: #475569;">Organizational department dimension defining business units, functional departments, ...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Dimension Table</strong></td>
+        <td><code class="col-code">dim_project</code></td>
+        <td style="text-align: right; font-weight: 700;">6</td>
+        <td style="text-align: right;">6</td>
+        <td style="color: #475569;">Project dimension cataloging enterprise client engagements, internal innovation initi...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Dimension Table</strong></td>
+        <td><code class="col-code">dim_holiday</code></td>
+        <td style="text-align: right; font-weight: 700;">24</td>
+        <td style="text-align: right;">7</td>
+        <td style="color: #475569;">Official company holiday dimension calendar defining fixed corporate holidays, floate...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Dimension Table (View/Alias)</strong></td>
+        <td><code class="col-code">company_holidays</code></td>
+        <td style="text-align: right; font-weight: 700;">24</td>
+        <td style="text-align: right;">7</td>
+        <td style="color: #475569;">Sub-millisecond analytical view directly exposing the 2026 FiftyFive Technologies cor...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Analytical Aggregation Mart</strong></td>
+        <td><code class="col-code">gold_dept_summary</code></td>
+        <td style="text-align: right; font-weight: 700;">8</td>
+        <td style="text-align: right;">8</td>
+        <td style="color: #475569;">Pre-computed analytical summary calculating total department headcounts, average/min/...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Analytical Aggregation Mart</strong></td>
+        <td><code class="col-code">gold_city_headcount</code></td>
+        <td style="text-align: right; font-weight: 700;">5</td>
+        <td style="text-align: right;">4</td>
+        <td style="color: #475569;">Geographical distribution rollup showing active workforce headcount, department diver...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-gold">Gold</span></td>
+        <td><strong>Analytical Aggregation Mart</strong></td>
+        <td><code class="col-code">gold_project_staffing</code></td>
+        <td style="text-align: right; font-weight: 700;">6</td>
+        <td style="text-align: right;">5</td>
+        <td style="color: #475569;">Project-level allocation summary showing assigned engineering team size, solution dom...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-silver">Silver</span></td>
+        <td><strong>Cleaned & Enriched Entity</strong></td>
+        <td><code class="col-code">silver_employees</code></td>
+        <td style="text-align: right; font-weight: 700;">500</td>
+        <td style="text-align: right;">20</td>
+        <td style="color: #475569;">Deduplicated, standardized employee master table with cleaned types, resolved departm...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-silver">Silver</span></td>
+        <td><strong>Cleaned Entity</strong></td>
+        <td><code class="col-code">silver_departments</code></td>
+        <td style="text-align: right; font-weight: 700;">8</td>
+        <td style="text-align: right;">4</td>
+        <td style="color: #475569;">Cleaned and verified department master table with canonical names and headquarters/hu...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-silver">Silver</span></td>
+        <td><strong>Cleaned Entity</strong></td>
+        <td><code class="col-code">silver_projects</code></td>
+        <td style="text-align: right; font-weight: 700;">6</td>
+        <td style="text-align: right;">6</td>
+        <td style="color: #475569;">Cleaned project portfolio table containing client classifications, tech stacks, and d...</td>
+      </tr>
+
+      <tr>
+        <td><span class="badge badge-silver">Silver</span></td>
+        <td><strong>Cleaned Entity</strong></td>
+        <td><code class="col-code">silver_holidays</code></td>
+        <td style="text-align: right; font-weight: 700;">24</td>
+        <td style="text-align: right;">7</td>
+        <td style="color: #475569;">Cleaned corporate holiday calendar with validated date formats, day names, and leave ...</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="bronze-box">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+      <div style="font-weight: 700; font-size: 7.8pt; color: #9a3412;">
+        <span class="badge badge-bronze">Bronze Layer</span> Raw Immutable Ingestion Payloads (JSON Archive)
+      </div>
+      <span class="badge" style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">
+        Source: synthetic_generator_api
+      </span>
+    </div>
+    <div>
+      Streaming raw JSON documents into <code>data/lakehouse/bronze/bronze_hr_raw_latest.json</code>.
+      Contains raw ingested arrays: 
+      <strong>500 employees</strong>, 
+      <strong>8 departments</strong>, 
+      <strong>6 projects</strong>, and 
+      <strong>24 official company holidays</strong>.
+      Pipeline Ingestion Timestamp: <code>2026-10-30T12:53:23.398497</code>.
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="section-header">
+    <div>
+      <div class="section-title">Gold Layer — Star Schema (Central Fact Table)</div>
+      <div class="section-subtitle">Quantitative transactions & metric aggregations</div>
+    </div>
+    <span class="badge badge-gold">
+      1 Table
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">fact_employee_allocations</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Fact Table</span>
+      </div>
+      <div>
+        <span class="badge-count">500 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">9 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Central quantitative fact table recording salary, experience, performance score, leave balance, and project allocation percentage, joined against dimensional surrogate keys.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">fact_id</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Primary Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">employee_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Foreign Key -> dim_employee)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">department_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Foreign Key -> dim_department)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">project_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Foreign Key -> dim_project)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">salary</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Metric (Annual CTC in INR))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">years_of_experience</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Metric (Years))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">performance_rating</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Metric (1.0 - 5.0 Rating))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">leave_balance</span>
+          <span class="type-code">INTEGER</span>
+          <span class="role-tag">(Metric (Available Days))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">allocation_percentage</span>
+          <span class="type-code">INTEGER</span>
+          <span class="role-tag">(Metric (Staffing %))</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>fact_id</th><th>employee_key</th><th>department_key</th><th>project_key</th><th>salary</th><th>years_of_experience</th><th>performance_rating</th><th>leave_balance</th><th>allocation_percentage</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>1</td><td>2</td><td>4</td><td>₹649,256.00</td><td>1.90</td><td>3.60</td><td>20</td><td>100</td></tr><tr><td>2</td><td>2</td><td>1</td><td>3</td><td>₹2,474,987.00</td><td>12.00</td><td>4.70</td><td>14</td><td>100</td></tr><tr><td>3</td><td>3</td><td>2</td><td>1</td><td>₹667,052.00</td><td>3.20</td><td>3.80</td><td>24</td><td>100</td></tr><tr><td>4</td><td>4</td><td>6</td><td>3</td><td>₹1,526,006.00</td><td>7.90</td><td>3.90</td><td>15</td><td>100</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Gold Layer — Star Schema (Core Employee Dimension)</div>
+      <div class="section-subtitle">Normalized workforce attributes & skill taxonomy</div>
+    </div>
+    <span class="badge badge-gold">
+      1 Table
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">dim_employee</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Dimension Table</span>
+      </div>
+      <div>
+        <span class="badge-count">500 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">12 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Conformed dimension containing normalized employee biographical, contact, role, skill taxonomy, and employment lifecycle attributes.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">employee_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Primary Key (Surrogate))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">employee_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Business Key / Natural Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">full_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Full Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">first_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(First Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">last_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Last Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">email</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Corporate Email Address)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">phone</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Contact Phone Number)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">designation</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Job Title / Corporate Rank)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">location</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Office Hub / Remote Location)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">skills</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Comma-delimited Core Tech Skills)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">joining_date</span>
+          <span class="type-code">DATE</span>
+          <span class="role-tag">(Date of Joining)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">status</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Employment Status (Active/Inactive))</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>employee_key</th><th>employee_id</th><th>full_name</th><th>email</th><th>phone</th><th>designation</th><th>location</th><th>skills</th><th>joining_date</th><th>status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>EMP0001</td><td>Isaac Bakshi</td><td>isaac.bakshi@fiftyfivetech.io</td><td>4332181960</td><td>Associate Software Engineer</td><td>Udaipur</td><td>Microservices, FastAPI, Java</td><td>2022-09-30</td><td>Active</td></tr><tr><td>2</td><td>EMP0002</td><td>Ayushman Chander</td><td>ayushman.chander@fiftyfivetech.io</td><td>+913890838637</td><td>Head of AI</td><td>Gurgaon</td><td>NLP, Python, RAG, PyTorch, Hugg...</td><td>2026-02-10</td><td>Active</td></tr><tr><td>3</td><td>EMP0003</td><td>Arunima Ahuja</td><td>arunima.ahuja@fiftyfivetech.io</td><td>+916542351161</td><td>Associate Software Engineer</td><td>Bengaluru</td><td>Java, Python, Go, Node.js, Micr...</td><td>2021-01-31</td><td>Active</td></tr><tr><td>4</td><td>EMP0004</td><td>Jagrati Padmanabhan</td><td>jagrati.padmanabhan@fiftyfivete...</td><td>4078161849</td><td>Senior QA Lead</td><td>Gurgaon</td><td>Automation Testing, Selenium, P...</td><td>2020-10-11</td><td>Active</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Gold Layer — Star Schema (Department & Project Dimensions)</div>
+      <div class="section-subtitle">Organizational departments, regional hubs, client accounts & tech stacks</div>
+    </div>
+    <span class="badge badge-gold">
+      2 Tables
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">dim_department</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Dimension Table</span>
+      </div>
+      <div>
+        <span class="badge-count">8 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">4 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Organizational department dimension defining business units, functional departments, and primary physical operating locations.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">department_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Primary Key (Surrogate))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">department_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Business Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">department_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Department / Functional Unit Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">location_hub</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Primary Operating City Hub)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>department_key</th><th>department_id</th><th>department_name</th><th>location_hub</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>DEP01</td><td>Artificial Intelligence</td><td>Jaipur</td></tr><tr><td>2</td><td>DEP02</td><td>Engineering</td><td>Jaipur</td></tr><tr><td>3</td><td>DEP03</td><td>Product & Design</td><td>Gurgaon</td></tr><tr><td>4</td><td>DEP04</td><td>Human Resource</td><td>Jaipur</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">dim_project</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Dimension Table</span>
+      </div>
+      <div>
+        <span class="badge-count">6 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">6 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Project dimension cataloging enterprise client engagements, internal innovation initiatives, domains, and assigned technology stacks.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">project_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Primary Key (Surrogate))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">project_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Business Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">project_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Project Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">domain</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Industry / Solution Domain)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">tech_stack</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Core Technologies & Frameworks)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">client_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Client Account Name)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>project_key</th><th>project_id</th><th>project_name</th><th>domain</th><th>tech_stack</th><th>client_name</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>PRJ01</td><td>ResoAI</td><td>Enterprise AI / NLP</td><td>Python, Ollama, ChromaDB, FastA...</td><td>FiftyFive Technologies Internal</td></tr><tr><td>2</td><td>PRJ02</td><td>VisionAI OCR</td><td>Computer Vision</td><td>Python, PyTorch, OpenCV, Fastif...</td><td>HealthCorp Global</td></tr><tr><td>3</td><td>PRJ03</td><td>CloudMigrate</td><td>Cloud Infrastructure</td><td>AWS, Terraform, Kubernetes, Go</td><td>FinTech Alliance</td></tr><tr><td>4</td><td>PRJ04</td><td>RetailPulse</td><td>E-Commerce Analytics</td><td>React, Node.js, PostgreSQL, Redis</td><td>OmniRetail Inc</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Gold Layer — Star Schema (Corporate Holiday Calendar)</div>
+      <div class="section-subtitle">Official FiftyFive Technologies 2026 holiday calendar dimension and fast-path view</div>
+    </div>
+    <span class="badge badge-gold">
+      2 Tables
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">dim_holiday</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Dimension Table</span>
+      </div>
+      <div>
+        <span class="badge-count">24 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">7 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Official company holiday dimension calendar defining fixed corporate holidays, floater leaves, weekdays, and holiday classifications.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">holiday_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Primary Key (Surrogate))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Unique Holiday Identifier)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Official Holiday Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">date</span>
+          <span class="type-code">DATE</span>
+          <span class="role-tag">(Calendar Date)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">day</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Day of the Week)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">month</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Calendar Month)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_type</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Classification (Fixed / Floater / Weekend))</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>holiday_key</th><th>holiday_id</th><th>holiday_name</th><th>date</th><th>day</th><th>month</th><th>holiday_type</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>HOL_NEW_YEAR__2026_2026</td><td>New Year - 2026</td><td>2026-01-01</td><td>Thursday</td><td>January</td><td>Fixed</td></tr><tr><td>2</td><td>HOL_MAKAR_SANKRANTI__PONGAL_2026</td><td>Makar Sankranti / Pongal</td><td>2026-01-14</td><td>Wednesday</td><td>January</td><td>Floater Leave</td></tr><tr><td>3</td><td>HOL_REPUBLIC_DAY_2026</td><td>Republic Day</td><td>2026-01-26</td><td>Monday</td><td>January</td><td>Fixed</td></tr><tr><td>4</td><td>HOL_HOLI_2026</td><td>Holi</td><td>2026-03-04</td><td>Wednesday</td><td>March</td><td>Fixed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">company_holidays</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Dimension Table (View/Alias)</span>
+      </div>
+      <div>
+        <span class="badge-count">24 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">7 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Sub-millisecond analytical view directly exposing the 2026 FiftyFive Technologies corporate holiday calendar for rapid SQL lookups.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">holiday_key</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Surrogate Identifier)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Unique Holiday Identifier)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Holiday Title)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">date</span>
+          <span class="type-code">DATE</span>
+          <span class="role-tag">(Holiday Date)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">day</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Day of the Week)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">month</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Month Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_type</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Holiday Classification)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>holiday_key</th><th>holiday_id</th><th>holiday_name</th><th>date</th><th>day</th><th>month</th><th>holiday_type</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>HOL_NEW_YEAR__2026_2026</td><td>New Year - 2026</td><td>2026-01-01</td><td>Thursday</td><td>January</td><td>Fixed</td></tr><tr><td>2</td><td>HOL_MAKAR_SANKRANTI__PONGAL_2026</td><td>Makar Sankranti / Pongal</td><td>2026-01-14</td><td>Wednesday</td><td>January</td><td>Floater Leave</td></tr><tr><td>3</td><td>HOL_REPUBLIC_DAY_2026</td><td>Republic Day</td><td>2026-01-26</td><td>Monday</td><td>January</td><td>Fixed</td></tr><tr><td>4</td><td>HOL_HOLI_2026</td><td>Holi</td><td>2026-03-04</td><td>Wednesday</td><td>March</td><td>Fixed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Gold Layer — Analytical Aggregation Marts (Part 1)</div>
+      <div class="section-subtitle">Sub-millisecond materialized views for departmental summaries & city distributions</div>
+    </div>
+    <span class="badge badge-gold">
+      2 Tables
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">gold_dept_summary</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Analytical Aggregation Mart</span>
+      </div>
+      <div>
+        <span class="badge-count">8 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">8 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Pre-computed analytical summary calculating total department headcounts, average/min/max salary distributions, experience, and performance.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">department_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Department Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">location_hub</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Location Hub)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">total_headcount</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Aggregated Employee Count)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">avg_salary</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Average Annual Salary (INR))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">min_salary</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Minimum Annual Salary (INR))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">max_salary</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Maximum Annual Salary (INR))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">avg_performance_rating</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Average Rating (1-5))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">avg_years_experience</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Average Experience (Years))</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>department_name</th><th>location_hub</th><th>total_headcount</th><th>avg_salary</th><th>min_salary</th><th>max_salary</th><th>avg_performance_rating</th><th>avg_years_experience</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Product & Design</td><td>Gurgaon</td><td>71</td><td>₹1,363,616.75</td><td>₹621,493.00</td><td>₹2,086,923.00</td><td>4.03</td><td>6.30</td></tr><tr><td>Data Analytics</td><td>Udaipur</td><td>67</td><td>₹1,464,269.67</td><td>₹628,851.00</td><td>₹2,087,739.00</td><td>3.91</td><td>6.80</td></tr><tr><td>Quality Assurance</td><td>Jaipur</td><td>64</td><td>₹1,123,291.48</td><td>₹631,593.00</td><td>₹1,644,856.00</td><td>3.90</td><td>5.00</td></tr><tr><td>Engineering</td><td>Jaipur</td><td>64</td><td>₹1,706,846.27</td><td>₹641,473.00</td><td>₹2,533,701.00</td><td>3.92</td><td>8.20</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">gold_city_headcount</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Analytical Aggregation Mart</span>
+      </div>
+      <div>
+        <span class="badge-count">5 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">4 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Geographical distribution rollup showing active workforce headcount, department diversity, and compensation across company locations.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">location</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(City Hub / Location)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">employee_count</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Total Headcount in City)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">departments_present</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Distinct Departments Operating)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">avg_salary</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Average Salary in City (INR))</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>location</th><th>employee_count</th><th>departments_present</th><th>avg_salary</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Gurgaon</td><td>104</td><td>8</td><td>₹1,399,766.89</td></tr><tr><td>Remote</td><td>103</td><td>8</td><td>₹1,418,707.34</td></tr><tr><td>Bengaluru</td><td>99</td><td>8</td><td>₹1,518,278.63</td></tr><tr><td>Jaipur</td><td>99</td><td>8</td><td>₹1,447,073.85</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Gold Layer — Analytical Aggregation Marts (Part 2)</div>
+      <div class="section-subtitle">Project allocation summary & assigned team performance metrics</div>
+    </div>
+    <span class="badge badge-gold">
+      1 Table
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-gold">Gold Layer</span>
+        <span class="table-name">gold_project_staffing</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Analytical Aggregation Mart</span>
+      </div>
+      <div>
+        <span class="badge-count">6 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">5 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Project-level allocation summary showing assigned engineering team size, solution domain, and average team performance metrics.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">project_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Project Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">domain</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Domain Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">client_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Client Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">assigned_team_size</span>
+          <span class="type-code">BIGINT</span>
+          <span class="role-tag">(Number of Assigned Employees)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">avg_team_rating</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Average Team Rating (1-5))</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>project_name</th><th>domain</th><th>client_name</th><th>assigned_team_size</th><th>avg_team_rating</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>VisionAI OCR</td><td>Computer Vision</td><td>HealthCorp Global</td><td>92</td><td>3.93</td></tr><tr><td>ResoAI</td><td>Enterprise AI / NLP</td><td>FiftyFive Technologies Internal</td><td>88</td><td>4.00</td></tr><tr><td>CloudMigrate</td><td>Cloud Infrastructure</td><td>FinTech Alliance</td><td>87</td><td>3.94</td></tr><tr><td>RetailPulse</td><td>E-Commerce Analytics</td><td>OmniRetail Inc</td><td>80</td><td>3.94</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Silver Layer — Cleaned & Enriched Entity (Employees)</div>
+      <div class="section-subtitle">Deduplicated, schema-validated Parquet dataset with 20 attributes & entity inspection</div>
+    </div>
+    <span class="badge badge-gold">
+      1 Table
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-silver">Silver Layer</span>
+        <span class="table-name">silver_employees</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Cleaned & Enriched Entity</span>
+      </div>
+      <div>
+        <span class="badge-count">500 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">20 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Deduplicated, standardized employee master table with cleaned types, resolved department mappings, and Parquet storage backing.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">employee_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Natural Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">first_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(First Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">last_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Last Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">full_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Combined Full Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">email</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Standardized Email)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">phone</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Phone Number)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">department_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Department ID)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">department_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Department Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">designation</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Standardized Title)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">location</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Standardized Location)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">joining_date</span>
+          <span class="type-code">DATE</span>
+          <span class="role-tag">(Casted Date)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">salary</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Annual CTC (Float))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">years_of_experience</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Experience (Float))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">skills</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Skills String)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">status</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Lifecycle Status)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">project_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Assigned Project ID)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">project_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Assigned Project Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">performance_rating</span>
+          <span class="type-code">DOUBLE</span>
+          <span class="role-tag">(Rating (Float))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">leave_balance</span>
+          <span class="type-code">INTEGER</span>
+          <span class="role-tag">(Balance (Integer))</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">processed_at</span>
+          <span class="type-code">TIMESTAMP WITH TIME ZONE</span>
+          <span class="role-tag">(Silver Ingestion Timestamp)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>employee_id</th><th>full_name</th><th>department_name</th><th>designation</th><th>location</th><th>salary</th><th>years_of_experience</th><th>skills</th><th>status</th><th>project_name</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>EMP0001</td><td>Isaac Bakshi</td><td>Engineering</td><td>Associate Software Engineer</td><td>Udaipur</td><td>₹649,256.00</td><td>1.90</td><td>Microservices, FastAPI, Java</td><td>Active</td><td>RetailPulse</td></tr><tr><td>EMP0002</td><td>Ayushman Chander</td><td>Artificial Intelligence</td><td>Head of AI</td><td>Gurgaon</td><td>₹2,474,987.00</td><td>12.00</td><td>NLP, Python, RAG, PyTorch, Hugg...</td><td>Active</td><td>CloudMigrate</td></tr><tr><td>EMP0003</td><td>Arunima Ahuja</td><td>Engineering</td><td>Associate Software Engineer</td><td>Bengaluru</td><td>₹667,052.00</td><td>3.20</td><td>Java, Python, Go, Node.js, Micr...</td><td>Active</td><td>ResoAI</td></tr><tr><td>EMP0004</td><td>Jagrati Padmanabhan</td><td>Quality Assurance</td><td>Senior QA Lead</td><td>Gurgaon</td><td>₹1,526,006.00</td><td>7.90</td><td>Automation Testing, Selenium, P...</td><td>Active</td><td>CloudMigrate</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+        <div class="sub-heading" style="margin-top:5px;">Record Entity Inspector (Row 1 • All 20 Attributes):</div>
+        <div class="record-inspector">
+          <div class="record-inspector-grid">
+            
+            <div class="ri-item">
+              <span class="ri-key">employee_id</span>
+              <span class="ri-val">EMP0001</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">first_name</span>
+              <span class="ri-val">Isaac</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">last_name</span>
+              <span class="ri-val">Bakshi</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">full_name</span>
+              <span class="ri-val">Isaac Bakshi</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">email</span>
+              <span class="ri-val">isaac.bakshi@fiftyfivetech.io</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">phone</span>
+              <span class="ri-val">4332181960</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">department_id</span>
+              <span class="ri-val">DEP02</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">department_name</span>
+              <span class="ri-val">Engineering</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">designation</span>
+              <span class="ri-val">Associate Software Engineer</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">location</span>
+              <span class="ri-val">Udaipur</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">joining_date</span>
+              <span class="ri-val">2022-09-30</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">salary</span>
+              <span class="ri-val">₹649,256.00</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">years_of_experience</span>
+              <span class="ri-val">1.90</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">skills</span>
+              <span class="ri-val">Microservices, FastAPI, Java</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">status</span>
+              <span class="ri-val">Active</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">project_id</span>
+              <span class="ri-val">PRJ04</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">project_name</span>
+              <span class="ri-val">RetailPulse</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">performance_rating</span>
+              <span class="ri-val">3.60</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">leave_balance</span>
+              <span class="ri-val">20</span>
+            </div>
+            
+            <div class="ri-item">
+              <span class="ri-key">processed_at</span>
+              <span class="ri-val">2026-10-30 12:53:23.476991+05:30</span>
+            </div>
+            
+          </div>
+        </div>
+        
+  </div>
+<div class="page-break"></div>
+  <div class="section-header">
+    <div>
+      <div class="section-title">Silver Layer — Cleaned Reference Parquet Tables</div>
+      <div class="section-subtitle">Standardized operational tables for departments, projects, and holidays</div>
+    </div>
+    <span class="badge badge-gold">
+      3 Tables
+    </span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-silver">Silver Layer</span>
+        <span class="table-name">silver_departments</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Cleaned Entity</span>
+      </div>
+      <div>
+        <span class="badge-count">8 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">4 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Cleaned and verified department master table with canonical names and headquarters/hub assignments.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">department_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Department Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">department_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Department Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">location_hub</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Operating Hub)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">processed_at</span>
+          <span class="type-code">TIMESTAMP WITH TIME ZONE</span>
+          <span class="role-tag">(Silver Pipeline Timestamp)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>department_id</th><th>department_name</th><th>location_hub</th><th>processed_at</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>DEP01</td><td>Artificial Intelligence</td><td>Jaipur</td><td>2026-10-30 12:53:23.445626+05:30</td></tr><tr><td>DEP02</td><td>Engineering</td><td>Jaipur</td><td>2026-10-30 12:53:23.445626+05:30</td></tr><tr><td>DEP03</td><td>Product & Design</td><td>Gurgaon</td><td>2026-10-30 12:53:23.445626+05:30</td></tr><tr><td>DEP04</td><td>Human Resource</td><td>Jaipur</td><td>2026-10-30 12:53:23.445626+05:30</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-silver">Silver Layer</span>
+        <span class="table-name">silver_projects</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Cleaned Entity</span>
+      </div>
+      <div>
+        <span class="badge-count">6 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">6 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Cleaned project portfolio table containing client classifications, tech stacks, and domain categorization.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">project_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Project Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">project_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Project Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">domain</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Domain)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">tech_stack</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Tech Stack)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">client_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Client Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">processed_at</span>
+          <span class="type-code">TIMESTAMP WITH TIME ZONE</span>
+          <span class="role-tag">(Silver Pipeline Timestamp)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>project_id</th><th>project_name</th><th>domain</th><th>tech_stack</th><th>client_name</th><th>processed_at</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>PRJ01</td><td>ResoAI</td><td>Enterprise AI / NLP</td><td>Python, Ollama, ChromaDB, FastA...</td><td>FiftyFive Technologies Internal</td><td>2026-10-30 12:53:23.462442+05:30</td></tr><tr><td>PRJ02</td><td>VisionAI OCR</td><td>Computer Vision</td><td>Python, PyTorch, OpenCV, Fastif...</td><td>HealthCorp Global</td><td>2026-10-30 12:53:23.462442+05:30</td></tr><tr><td>PRJ03</td><td>CloudMigrate</td><td>Cloud Infrastructure</td><td>AWS, Terraform, Kubernetes, Go</td><td>FinTech Alliance</td><td>2026-10-30 12:53:23.462442+05:30</td></tr><tr><td>PRJ04</td><td>RetailPulse</td><td>E-Commerce Analytics</td><td>React, Node.js, PostgreSQL, Redis</td><td>OmniRetail Inc</td><td>2026-10-30 12:53:23.462442+05:30</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+
+  <div class="table-card">
+    <div class="table-card-top">
+      <div class="table-identity">
+        <span class="badge badge-silver">Silver Layer</span>
+        <span class="table-name">silver_holidays</span>
+        <span style="font-size: 7.5pt; color: #64748b; font-weight:600;">• Cleaned Entity</span>
+      </div>
+      <div>
+        <span class="badge-count">24 Rows</span>
+        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">7 Columns</span>
+      </div>
+    </div>
+
+    <div class="table-desc">Cleaned corporate holiday calendar with validated date formats, day names, and leave categorization.</div>
+
+    <div class="sub-heading">Column Specifications & Architectural Roles:</div>
+    <div class="schema-grid">
+      
+        <div class="schema-item">
+          <span class="col-code">holiday_id</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Holiday Key)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_name</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Holiday Name)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">date</span>
+          <span class="type-code">DATE</span>
+          <span class="role-tag">(Parsed Date)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">day</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Day of Week)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">month</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Month)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">holiday_type</span>
+          <span class="type-code">VARCHAR</span>
+          <span class="role-tag">(Classification)</span>
+        </div>
+        
+        <div class="schema-item">
+          <span class="col-code">processed_at</span>
+          <span class="type-code">TIMESTAMP WITH TIME ZONE</span>
+          <span class="role-tag">(Silver Pipeline Timestamp)</span>
+        </div>
+        
+    </div>
+
+    <div class="sub-heading">Live Sample Data Preview (First 4 Rows):</div>
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>holiday_id</th><th>holiday_name</th><th>date</th><th>day</th><th>month</th><th>holiday_type</th><th>processed_at</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>HOL_NEW_YEAR__2026_2026</td><td>New Year - 2026</td><td>2026-01-01</td><td>Thursday</td><td>January</td><td>Fixed</td><td>2026-10-30 12:53:23.502069+05:30</td></tr><tr><td>HOL_REPUBLIC_DAY_2026</td><td>Republic Day</td><td>2026-01-26</td><td>Monday</td><td>January</td><td>Fixed</td><td>2026-10-30 12:53:23.502069+05:30</td></tr><tr><td>HOL_HOLI_2026</td><td>Holi</td><td>2026-03-04</td><td>Wednesday</td><td>March</td><td>Fixed</td><td>2026-10-30 12:53:23.502069+05:30</td></tr><tr><td>HOL_INDEPENDENCE_DAY_2026</td><td>Independence Day</td><td>2026-08-15</td><td>Saturday</td><td>August</td><td>Weekend</td><td>2026-10-30 12:53:23.502069+05:30</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+
+</body>
+</html>
