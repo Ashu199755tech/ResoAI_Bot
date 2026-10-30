@@ -1,139 +1,246 @@
-# ResoAI: Agentic CRAG Pipeline
+# ResoAI — Enterprise Conversational Intelligence Assistant
 
-> **Enterprise-Grade internal assistant** providing 100% accurate quantitative answers and nuanced semantic retrieval. Built with an autonomous **Agentic CRAG (Conversational RAG)** architecture running locally on CPU via [Ollama](https://ollama.com).
-
----
-
-## 🚀 Overview & New Architecture
-
-ResoAI has evolved from a standard keyword-based RAG pipeline into a fully autonomous, **Self-Correcting Agentic CRAG System**. It uses a **Small Brain / Big Brain** tiered strategy to eliminate factual hallucinations, parse complex human language, and maintain ultra-low latency.
-
-### 🧠 The "Small Brain": Query Decomposer
-We have eliminated brittle, hardcoded intent lists (regex parsing) and replaced them with a lightweight, high-speed LLM (`llama3.2:1b`).
-* It dynamically parses raw user questions into a structured JSON `QueryPlan`.
-* Automatically infers **intent** (count, list, lookup, policy).
-* Extracts exact **search_terms** and identifies the underlying **entity** (employee, project, holiday, policy).
-* Features built-in noise-filtering that uses configurable stop-words (e.g., dynamically removing generic words like "department" from the LLM extraction).
-
-### 🤖 The "Big Brain": Hybrid Retrieval & Synthesis
-* Uses `llama3.2` for final answer generation with rigorous strict-fact prompting.
-* Employs **Conversational Memory**: A stabilized 1-turn memory horizon prevents context contamination during sequential follow-up queries.
-* **Hybrid Search Engine**: Combines Statistical (BM25) + Semantic (Vector Embeddings via `nomic-embed-text`) + Exact Substring matching.
-* Uses **FlashRank Cross-Encoder Re-ranking** to filter candidate chunks down to the absolute most relevant context.
+> **Autonomous Self-Correcting Agentic CRAG + Embedded DuckDB Medallion Lakehouse**  
+> Developed for FiftyFive Technologies. Runs 100% locally on CPU via [Ollama](https://ollama.com) with zero cloud token costs, zero hallucinations on math, and strict corporate data privacy.
 
 ---
 
-## ✨ Key Capabilities
+## 🚀 Overview & Architecture
 
-1. **100% Count Accuracy**: Structured queries (e.g., *"How many people are in the HR department?"*) bypass the vector database completely and are routed to the deterministic **DataInterpreter**.
-2. **Conversational Memory**: Users can pass a `session_id` to ask follow-up questions (e.g., Q1: *"Who manages Alpha?"* -> Q2: *"What is his email?"*) without losing context.
-3. **Dynamic Acronym & Typo Resolution**: 
-   - Typo-tolerance (`_fuzzy_expand_names`) automatically corrects misspelled names.
-   - Acronyms (e.g., `nlp` -> `NLP`) and aliases (e.g., `HR` -> `Human Resource`) are automatically expanded to match unstructured PDFs.
-4. **Universal Ingestion**: Automatically handles PDFs, Markdown, Excel, and API data.
+ResoAI bridges the gap between **unstructured corporate policies** (PDFs, handbooks, ISO procedures) and **structured quantitative data** (headcounts, salary distributions, holidays, project staffing) through a **Dual-Engine Architecture**:
+
+```mermaid
+flowchart TD
+    User["User (Web UI / Telegram / Teams)"] --> Decomposer["Query Decomposer & Intent Parser ('Small Brain' llama3.2:1b)"]
+    
+    Decomposer -->|"Quantitative / Headcounts / Salaries / Holidays"| Lakehouse["DuckDB Medallion Lakehouse\n(Gold Star Schema)"]
+    Decomposer -->|"Unstructured Policies / ISO / Handbooks"| HybridRAG["Agentic Hybrid RAG Pipeline\n(BM25 + ChromaDB + FlashRank)"]
+    Decomposer -->|"Direct Staff / Leadership Lookup"| Directory["Direct Entity Interpreter\n(In-Memory Directory)"]
+    
+    Lakehouse -->|"Sub-200ms Deterministic SQL"| Answer["Accurate Answer with Sources & Telemetry"]
+    HybridRAG -->|"Strict Synthesis via Llama 3.2"| Answer
+    Directory -->|"50ms Instant Match"| Answer
+```
+
+### 🧠 1. The Dual-Brain System
+* **Small Brain (`llama3.2:1b`):** Fast, low-latency intent parser that dynamically decomposes questions into search plans without brittle regexes.
+* **Big Brain (`llama3.2` at temp 0.1):** Strict, fact-bounded synthesis engine that extracts answers directly from retrieved documents with source citations.
+
+### 🏛️ 2. DuckDB Medallion Lakehouse
+* **Bronze Layer:** Ingests raw JSON payloads into immutable append-only storage with audit timestamps.
+* **Silver Layer:** Cleans, deduplicates, schema-validates, and exports optimized Apache Parquet tables.
+* **Gold Layer:** Star Schema with central fact table (`fact_employee_allocations`) joined against dimensional tables (`dim_employee`, `dim_department`, `dim_project`, `dim_holiday`) and pre-computed analytical marts (`gold_dept_summary`, `gold_city_headcount`, `gold_project_staffing`).
+
+### 🔍 3. Agentic Hybrid RAG
+* **Two-Stage Search:** Combines statistical keyword retrieval ([`Rank-BM25`](src/rag/chain.py)) with dense vector embeddings ([`ChromaDB`](src/rag/chain.py)) using `nomic-embed-text`.
+* **FlashRank Neural Re-ranking:** Cross-encoder neural re-ranker eliminates irrelevant context chunks to maximize factual accuracy.
 
 ---
 
-## ⚙️ Installation & Setup (Docker Recommended)
+## 💻 System Requirements & Prerequisites
 
-We have containerized the entire application for "one-click" portability, preventing port conflicts and missing dependency issues.
+* **OS:** Linux (Ubuntu 20.04+ recommended), macOS, or Windows via WSL2
+* **Python:** `Python 3.10` or higher
+* **Memory:** Minimum 8 GB RAM (16 GB recommended for CPU inference)
+* **System Packages:** `git`, `curl`, `poppler-utils` (for PDF processing)
+* **LLM Engine:** [Ollama](https://ollama.com) installed and running locally
 
-### 🐳 Using Docker Compose (The Easy Way)
-Ensure you have Docker and Docker Compose installed on your machine.
+---
 
+## 🛠️ Step-by-Step Setup Guide
+
+### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/Ashu199755tech/ResoAI_Telegram_Bot.git
 cd ResoAI_Telegram_Bot
+```
 
-# Start the environment in detached mode
+### Step 2: Install & Pull Ollama Models
+Ensure the Ollama daemon is running (`ollama serve`), then pull the required models:
+```bash
+# 1. Big Brain: Final factual answer synthesis
+ollama pull llama3.2
+
+# 2. Small Brain: Ultra-fast intent parser & query decomposer
+ollama pull llama3.2:1b
+
+# 3. Dense Vector Embeddings: For ChromaDB semantic search
+ollama pull nomic-embed-text
+```
+
+### Step 3: Set Up Python Virtual Environment & Dependencies
+```bash
+# Install system dependency for PDF text extraction (Debian/Ubuntu)
+sudo apt update && sudo apt install -y poppler-utils
+
+# Create virtual environment and install dependencies
+make setup
+```
+*Or manually:*
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### Step 4: Build DuckDB Lakehouse & Ingest Data
+Build the DuckDB Bronze, Silver, and Gold Star Schema tables, and sync company holidays into ChromaDB:
+```bash
+make lakehouse
+```
+*Or manually:*
+```bash
+./venv/bin/python scripts/build_lakehouse.py --sync-holidays
+```
+
+---
+
+## ▶️ Running ResoAI
+
+### 1. Launch the Web Chatbot Server
+Start the FastAPI server hosting the neural web interface and REST API on port `8000`:
+```bash
+make run
+```
+*Or manually:*
+```bash
+./venv/bin/python scripts/run_web.py --port 8000
+```
+
+### 2. Access the Application
+Open your web browser and navigate to:
+👉 **[http://localhost:8000](http://localhost:8000)**
+
+You will see the futuristic dark-mode console with the revolving 3D neural synaptic globe, live compute telemetry badges, and interactive source citations.
+
+---
+
+## 🐳 Alternative Setup: Docker Compose
+
+If you prefer running everything in isolated containers without setting up Python locally:
+
+```bash
 docker-compose up -d
 ```
-**What this does:**
-1. Spins up the FastAPI `resoai-app` container (available on port `8001`).
-2. Spins up the `resoai-ollama` engine container.
-3. Runs an automated setup script (`resoai-ollama-setup`) that waits for Ollama to boot, then automatically pulls the required `llama3.2` and `nomic-embed-text` models.
+* Spawns `resoai-app` on port `8001`.
+* Spawns `resoai-ollama` and automatically pulls required models on startup.
 
-### 💻 Local/Native Setup
-1. Install [Ollama](https://ollama.com).
-2. Pull the required models:
-   ```bash
-   ollama pull llama3.2
-   ollama pull llama3.2:1b
-   ollama pull nomic-embed-text
-   ```
-3. Setup Python environment:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   sudo apt install poppler-utils # Required for PDF parsing
-   ```
-4. Start the server (runs on `localhost:8000` locally):
-   ```bash
-   uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
+---
+
+## 📋 Development & Maintenance Commands (`Makefile`)
+
+All common workflows are automated via headless `make` targets:
+
+| Command | Description |
+|---|---|
+| `make setup` | Create `venv` and install all Python dependencies |
+| `make run` | Launch the ResoAI web chatbot server on port 8000 |
+| `make lakehouse` | Build DuckDB Bronze/Silver/Gold Lakehouse & sync holidays |
+| `make test` | Run complete automated test suite (`pytest -v`) |
+| `make test-fast` | Run targeted Lakehouse & API unit tests |
+| `make lint` | Check code quality and formatting with Ruff |
+| `make format` | Automatically fix and format code with Ruff |
+| `make clean` | Remove cache files, pytest artifacts, and build directories |
+
+### Generate Visual Presentation PDFs
+```bash
+# Generate 3-page sample table presentation PDF for stakeholders:
+./venv/bin/python scripts/generate_sample_tables_pdf.py
+# -> docs/duckdb_sample_data.pdf
+
+# Generate complete 9-page technical schema catalog:
+./venv/bin/python scripts/generate_duckdb_pdf.py
+# -> docs/duckdb_tables_catalog.pdf
+```
+
+---
+
+## 🧪 Sample Queries to Test the System
+
+Once the server is running on `http://localhost:8000`, test these questions to verify all distinct pathways:
+
+| # | Question | Pathway | Expected Output | Execution Speed |
+|---|---|---|---|---|
+| **1** | *"Who is Amit Jangid?"* | `Direct Entity Lookup` | Identifies Amit Jangid (EMP1025) as Chief Technology Officer in Technology (Jaipur). | **~0.05s** |
+| **2** | *"How many employees are in HR?"* | `DuckDB Medallion Lakehouse` | Executes SQL on Gold Star Schema: returns exact count of 64 employees. | **~0.13s** |
+| **3** | *"When is Diwali in 2026?"* | `DuckDB Medallion Lakehouse` | Queries `dim_holiday`: Sunday, November 8, 2026 (Weekend Holiday). | **~0.10s** |
+| **4** | *"What is the probation period policy for new employees?"* | `Agentic Hybrid RAG` | Retrieves official company PDF policy: 3 months for experienced professionals. | CPU Inference |
 
 ---
 
 ## 🔌 Core API Endpoints
 
 ### 1. `/api/ask` (POST)
-The primary endpoint for asking questions. Includes conversational memory support.
+Primary conversational query endpoint with memory support.
 ```bash
 curl -X POST http://localhost:8000/api/ask \
      -H "Content-Type: application/json" \
-     -d '{"question": "Who is the lead for the ResoAI project?", "session_id": "user123"}'
+     -d '{"question": "How many employees are in HR?", "session_id": "session_001"}'
 ```
 
-### 2. `/api/debug` (POST)
-Bypasses the final LLM generation step and returns exactly how the system routed the query (Decomposer JSON output, Retriever chunks, DataInterpreter matches). Crucial for debugging "Why did it give me this answer?".
+### 2. `/api/health` (GET)
+System health check endpoint.
+```bash
+curl http://localhost:8000/api/health
+# Response: {"status":"ok","service":"ResoAI"}
+```
+
+### 3. `/api/debug` (POST)
+Returns query decomposer plan, retrieved candidate chunks, and routing pathways without calling final LLM synthesis.
 ```bash
 curl -X POST http://localhost:8000/api/debug \
      -H "Content-Type: application/json" \
-     -d '{"question": "How many employees are in HR?"}'
+     -d '{"question": "Who is Amit Jangid?"}'
 ```
-
-### 3. `/api/upload` (POST)
-Incrementally upload any supported file (PDF, CSV, JSON, TXT). Converts the file to JSON and instantly ingests it into ChromaDB *without* requiring a full system re-index.
-```bash
-curl -X POST http://localhost:8000/api/upload -F 'file=@new_policy.pdf'
-```
-
-### 4. `/api/consolidate-and-ingest` (POST)
-Triggers a full rebuild of the system. Consolidates fragmented raw data into single source-of-truth JSONs, truncates the ChromaDB database, and re-ingests everything from scratch.
 
 ---
 
-## 📂 Project Structure
+## 📂 Project Directory Map
 
 ```text
 ├── src/
-│   ├── main.py             # FastAPI App & Endpoints
-│   ├── config.py           # Centralized Dynamic Settings
+│   ├── main.py                 # FastAPI server entrypoint & web routes
+│   ├── config.py               # Centralized Pydantic application settings
 │   ├── rag/
-│   │   ├── query_decomposer.py  # Small-brain LLM for intent parsing
-│   │   ├── data_interpreter.py  # Deterministic JSON scanner
-│   │   ├── chain.py             # Big-brain Hybrid Retrieval & Synthesis
-│   │   ├── memory.py            # Conversational state & rewrite logic
-│   ├── ingestion/          # Pipeline for PDFs & unstructured text
-│   ├── consolidator/       # Unified data aggregation
+│   │   ├── chain.py            # Hybrid Search (BM25 + ChromaDB + FlashRank) & synthesis
+│   │   ├── query_decomposer.py # Small Brain LLM intent parser (llama3.2:1b)
+│   │   ├── data_interpreter.py # Deterministic in-memory entity scanner
+│   │   └── memory.py           # Conversational memory state & query rewriter
+│   └── lakehouse/
+│       ├── pipeline.py         # Medallion ETL pipeline (Bronze -> Silver -> Gold Parquet)
+│       ├── query_engine.py     # Sub-millisecond analytical SQL engine for Star Schema
+│       ├── generator.py        # Synthetic test data & authentic holiday generator
+│       └── vector_sync.py      # Dual-sync bridge between DuckDB Gold and ChromaDB
 ├── data/
-│   ├── directory.json      # Employee Source of Truth
-│   ├── projects.json       # Case Studies SOT
-│   ├── holidays.json       # Holiday SOT
-│   ├── chromadb/           # Persistent Vector Store
-├── docker-compose.yml      # Orchestration for app & ollama
-└── README.md
+│   ├── lakehouse/              # DuckDB database (resoai_lakehouse.duckdb) & Parquet files
+│   ├── chromadb/               # Persistent dense vector store
+│   ├── employees.json          # Authentic employee directory source of truth
+│   └── holidays.json           # Official 2026 FiftyFive Technologies holiday calendar
+├── docs/
+│   ├── duckdb_sample_data.pdf  # 3-page presentation PDF of DuckDB sample tables
+│   ├── duckdb_tables_catalog.pdf # 9-page technical schema & data catalog
+│   └── ai-policy.md            # AI workflow governance & human-approval guidelines
+├── scripts/
+│   ├── run_web.py              # Web chatbot runner with 3D neural visualization
+│   ├── build_lakehouse.py      # CLI runner to build Lakehouse & sync holidays
+│   └── generate_sample_tables_pdf.py # PDF sample generator
+├── tests/                      # Automated unit and integration test suite
+├── Makefile                    # Developer commands (run, test, lint, lakehouse)
+├── AGENTS.md                   # Canonical AI agent instructions
+└── README.md                   # Project documentation & setup guide
 ```
 
 ---
 
-## 🤖 AI Agent Workflow & Standards
-This repository complies with the FiftyFive Technologies [AI Workflow Audit](https://github.com/FiftyfiveTech/ai-workflow-audit) standard:
-- **Canonical Instructions:** [AGENTS.md](AGENTS.md)
-- **Governance & Policy:** [docs/ai-policy.md](docs/ai-policy.md)
-- **Architecture Decisions:** [docs/adr/](docs/adr/)
-- **Reusable Skills:** [.agents/skills/](.agents/skills/)
-- **Human Approval Policy:** [docs/human-approval-list.md](docs/human-approval-list.md)
+## 🛡️ AI Governance & Audit Compliance
+
+This repository complies with the FiftyFive Technologies [AI Workflow Audit](https://github.com/FiftyfiveTech/ai-workflow-audit) standards:
+* **Canonical Agent Guide:** [`AGENTS.md`](AGENTS.md) (< 200 lines, single source of truth)
+* **Cursor & Claude IDE Rules:** [`.cursorrules`](.cursorrules), [`CLAUDE.md`](CLAUDE.md), [`.claude/settings.json`](.claude/settings.json)
+* **Governance Policies:** [`docs/ai-policy.md`](docs/ai-policy.md), [`docs/human-approval-list.md`](docs/human-approval-list.md)
+* **Automated CI & PR Templates:** [`.github/pull_request_template.md`](.github/pull_request_template.md), [`.github/CODEOWNERS`](.github/CODEOWNERS)
+* **Reproducible Test Verification:** `make test-fast` passing before every commit.
 
 ---
-*Developed by FiftyFive Technologies - Enterprise RAG Division*
+*Maintained by FiftyFive Technologies — Enterprise AI & Lakehouse Practice*
